@@ -3,12 +3,14 @@ import { config, fields, collection, singleton } from '@keystatic/core';
 export default config({
   storage: import.meta.env.PROD
     ? {
-        kind: 'github',
-        repo: 'petrcernansky/rybizak-web', // Tady musí být TVŮJ název repozitáře
+        kind: 'cloud',
       }
     : {
         kind: 'local',
       },
+  cloud: {
+    project: 'rybizak/rybizak-web',
+  },
   singletons: {
     homepage: singleton({
       label: 'Nastavení webu & Úvod',
