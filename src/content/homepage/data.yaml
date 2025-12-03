@@ -1,0 +1,78 @@
+logo: /images/brand/logo.svg
+heroHeadline: Rybízačí vinárna
+heroSubheadline: ve Frýdku-Místku
+heroImage: /images/hero/heroImage.webp
+reservationLink: https://qerko.com/restaurant/0e1cb4b5-78c2-4b74-a6ef-9951853d5a51/reservation
+aboutHeadline: O naší vinárně
+aboutText: >-
+  Přijďte k nám posedět, pobavit se a hlavně nasávat dobré vínko. Čekají na vás
+  vaši ovocní oblíbenci, míchané drinky i něco k zakousnutí. Na mlýnku máme
+  výběrovou kávu a ve vitrínce samé dobroty. Nabídka se pokaždé trochu mění,
+  abychom vás brzy nezačali nudit.
+
+
+  Ve vinárně to žije! Pravidelně se tu družíme u živé hudby, chytrého kvízu a
+  jiných kratochvílí. Jaké akce se u nás konají zjistíte u nás na Facebooku.
+
+
+  Ovocná vinárna funguje také jako kamenná prodejna. Pod námi sídlí obrovský
+  sklad plný tekutých i jedlých dobrot. Takže skoro všechno, co najdete na
+  e-shopu, máme i fyzicky u nás. 
+aboutImage: /images/about/aboutImage.jpg
+cardHeadline: Věrnostní program
+cardText: >-
+  Výhody programu:
+
+  Každý vlastník zákaznické kartičky má 5% slevu na všechno!
+
+
+  Při každém nákupu sbíráte body:
+
+  1dcl vína 3 body | 2dcl vína 6 bodů | míchaný drink 7 bodů | láhev vína 10
+  bodů | vše ostatní 5 bodů
+
+
+  Odměny:
+
+  50 bodů libovolná káva / libovolné 2dcl vína
+
+  100 bodů libovolný míchaný drink / libovolné rozlévané nealko
+
+  200 bodů libovolné degustační prkénko
+
+  300 bodů velká lahev 0,75l dle výběru z TOP13 / nealko víno
+
+  400 bodů libovolná lahev speciálu / limitované edice
+
+  500 bodů 2 drinky + pizza dle výběru
+
+  600 bodů dárkový poukaz v hodnotě 500,-
+
+
+  Další výhody:
+
+  Black friday o den dříve. | O všem budete vědět jako první. | Kartičku vám
+  založíme přímo u nás na prodejně ve Frýdku-Místku.
+
+
+  Kartičku si můžete nahrát i do mobilního telefonu, například do aplikace
+  Klarna.
+cardImage: /images/card/cardImage.png
+address: Frýdlantská 770, Frýdek-Místek
+phone: 799 505 581
+email: vinarna@rybizak.cz
+footerImage: /images/footer/footerImage.png
+companyInfo: >-
+  Rybízák s.r.o., IČ: 05887461, DIČ: CZ05887461, sídlo: Sládkova 372/8, Ostrava.
+  Jsme plátci DPH. 
+openingHours:
+  - day: Pondělí
+    time: zavřeno
+  - day: Úterý - Čtvrtek
+    time: 15:00 - 22:00
+  - day: Pátek - Sobota
+    time: 15:00 - půlnoc
+  - day: Neděle
+    time: zavřeno
+facebookLink: http://facebook.com/rybizak.fm
+instagramLink: http://instagram.com/rybizak_fm/
