@@ -4,6 +4,9 @@ const homepage = defineCollection({
   type: 'data',
   schema: z.object({
     logo: z.string().optional(),
+    infoBannerText: z.string().optional(),
+    infoBannerStart: z.string().optional(),
+    infoBannerEnd: z.string().optional(),
     heroHeadline: z.string(),
     heroSubheadline: z.string().optional(),
     heroImage: z.string().optional(),

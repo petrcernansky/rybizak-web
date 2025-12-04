@@ -17,6 +17,19 @@ export default config({
       path: 'src/content/homepage/data',
       schema: {
         // --- ZÁKLADNÍ ---
+        // --- INFORMAČNÍ LIŠTA (NOVÉ) ---
+        infoBannerText: fields.text({
+          label: 'Text informační lišty (nahoře)',
+          description: 'Např. "Dnes zavřeno". Pokud je prázdné, lišta zmizí.',
+        }),
+        infoBannerStart: fields.date({
+          label: 'Zobrazovat OD (datum)',
+          description: 'Nepovinné. Lišta se začne zobrazovat až od tohoto dne.',
+        }),
+        infoBannerEnd: fields.date({
+          label: 'Zobrazovat DO (datum)',
+          description: 'Nepovinné. Po tomto datu lišta sama zmizí.',
+        }),
         logo: fields.image({
           label: 'Logo',
           directory: 'public/images/brand',

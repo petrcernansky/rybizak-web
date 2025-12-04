@@ -3,7 +3,28 @@ import { getEntry, getCollection } from 'astro:content';
 
 const homepageData = await getEntry('homepage', 'data');
 const settings = homepageData?.data || {};
+// --- LOGIKA PRO INFORMAČNÍ LIŠTU ---
+const today = new Date();
+today.setHours(0, 0, 0, 0); // Vynulujeme čas, porovnáváme jen dny
 
+const showBanner = (() => {
+    // 1. Pokud není text, nezobrazovat
+    if (!settings.infoBannerText) return false;
+
+    // 2. Kontrola data OD
+    if (settings.infoBannerStart) {
+        const startDate = new Date(settings.infoBannerStart);
+        if (today < startDate) return false; // Ještě nenastal čas
+    }
+
+    // 3. Kontrola data DO
+    if (settings.infoBannerEnd) {
+        const endDate = new Date(settings.infoBannerEnd);
+        if (today > endDate) return false; // Už je po termínu
+    }
+
+    return true; // Prošlo všemi kontrolami
+})();
 const benefity = await getCollection('benefits');
 let menuList = await getCollection('menus');
 const personal = await getCollection('staff');
@@ -22,8 +43,11 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="bg-gray-50 text-slate-800 font-['Inter'] antialiased">
-
-    <nav class="bg-white/95 backdrop-blur-sm fixed w-full z-50 shadow-sm border-b border-gray-100 transition-all duration-300">
+{showBanner && (
+        <div class="bg-red-600 text-white text-center py-3 px-4 font-bold relative z-[60] shadow-md">
+            {settings.infoBannerText}
+        </div>
+)}  <nav class="bg-white/95 backdrop-blur-sm fixed w-full z-50 shadow-sm border-b border-gray-100 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <div class="flex-shrink-0 flex items-center">
