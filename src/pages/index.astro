@@ -3,34 +3,30 @@ import { getEntry, getCollection } from 'astro:content';
 
 const homepageData = await getEntry('homepage', 'data');
 const settings = homepageData?.data || {};
+
 // --- LOGIKA PRO INFORMAČNÍ LIŠTU ---
 const today = new Date();
-today.setHours(0, 0, 0, 0); // Vynulujeme čas, porovnáváme jen dny
+today.setHours(0, 0, 0, 0);
 
 const showBanner = (() => {
-    // 1. Pokud není text, nezobrazovat
     if (!settings.infoBannerText) return false;
-
-    // 2. Kontrola data OD
     if (settings.infoBannerStart) {
         const startDate = new Date(settings.infoBannerStart);
-        if (today < startDate) return false; // Ještě nenastal čas
+        if (today < startDate) return false;
     }
-
-    // 3. Kontrola data DO
     if (settings.infoBannerEnd) {
         const endDate = new Date(settings.infoBannerEnd);
-        if (today > endDate) return false; // Už je po termínu
+        if (today > endDate) return false;
     }
-
-    return true; // Prošlo všemi kontrolami
+    return true;
 })();
+
 const benefity = await getCollection('benefits');
 let menuList = await getCollection('menus');
 const personal = await getCollection('staff');
 const plakaty = await getCollection('concerts');
 
-// Seřazení menu podle priority (menší číslo = výše)
+// Seřazení menu
 menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
 ---
 
@@ -39,24 +35,30 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>Rybízák Frýdek-Místek</title>
-	<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body class="bg-gray-50 text-slate-800 font-['Inter'] antialiased">
-{showBanner && (
-        <div class="bg-red-600 text-white text-center py-3 px-4 font-bold relative z-[60] shadow-md">
+
+    {showBanner && (
+        <div class="bg-black text-yellow-400 text-center py-2 px-4 font-bold text-sm md:text-base relative z-[60]">
             {settings.infoBannerText}
         </div>
-)}  <nav class="bg-white/95 backdrop-blur-sm fixed w-full z-50 shadow-sm border-b border-gray-100 transition-all duration-300">
+    )}
+
+    <nav class="sticky top-0 w-full z-50 bg-white/95 backdrop-blur-sm shadow-sm border-b border-gray-100 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <div class="flex-shrink-0 flex items-center">
-                    {settings.logo ? (
-                        <img class="h-10 w-auto md:h-12" src={settings.logo} alt="Rybízák Logo" />
-                    ) : (
-                        <span class="text-2xl font-bold text-[#45225e]">RYBÍZÁK</span>
-                    )}
+                    <a href="#" class="block">
+                        {settings.logo ? (
+                            <img class="h-10 w-auto md:h-12" src={settings.logo} alt="Rybízák Logo" />
+                        ) : (
+                            <span class="text-2xl font-bold text-[#45225e]">RYBÍZÁK</span>
+                        )}
+                    </a>
                 </div>
+
                 <div class="hidden md:flex space-x-8 items-center">
                     <a href="#menu" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Nabídka</a>
                     <a href="#akce" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Akce</a>
@@ -67,11 +69,32 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
                         </a>
                     )}
                 </div>
+
+                <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-btn" class="text-gray-600 hover:text-[#45225e] focus:outline-none p-2">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="hidden md:hidden absolute top-20 left-0 w-full bg-white border-b border-gray-100 shadow-xl">
+            <div class="px-4 pt-2 pb-6 space-y-2 flex flex-col text-center">
+                <a href="#menu" class="block py-3 text-gray-800 font-bold hover:bg-gray-50 rounded-lg">NABÍDKA</a>
+                <a href="#akce" class="block py-3 text-gray-800 font-bold hover:bg-gray-50 rounded-lg">AKCE</a>
+                <a href="#kontakt" class="block py-3 text-gray-800 font-bold hover:bg-gray-50 rounded-lg">KONTAKT</a>
+                {settings.reservationLink && (
+                    <a href={settings.reservationLink} target="_blank" class="inline-block mt-2 bg-[#45225e] text-white py-3 px-8 rounded-full font-bold">
+                        REZERVACE
+                    </a>
+                )}
             </div>
         </div>
     </nav>
 
-    <header class="relative h-[90vh] flex items-center justify-center">
+    <header class="relative h-[85vh] flex items-center justify-center">
         {settings.heroImage && (
             <div class="absolute inset-0 z-0">
                 <img src={settings.heroImage} alt="Úvod" class="w-full h-full object-cover" />
@@ -99,13 +122,15 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
 
     {benefity.length > 0 && (
         <section class="py-8 bg-white border-b border-gray-100 relative z-20 -mt-10 mx-4 md:mx-auto max-w-6xl rounded-xl shadow-lg">
-            <div class="grid grid-flow-col auto-cols-fr gap-2 md:gap-8 px-4 md:px-8 text-center items-center">
+            <div class="grid grid-flow-col auto-cols-fr gap-1 md:gap-8 px-2 md:px-8 text-center items-center">
                 {benefity.map((item) => (
-                    <div class="flex flex-col items-center justify-center group">
+                    <div class="flex flex-col items-center justify-center group h-full">
                         {item.data.icon && (
                             <img src={item.data.icon} alt={item.data.title} class="h-8 w-8 md:h-12 md:w-12 mb-2 md:mb-3 object-contain opacity-80 group-hover:opacity-100 transition" />
                         )}
-                        <h3 class="text-[10px] md:text-xs font-bold text-[#45225e] uppercase tracking-wide leading-tight">{item.data.title}</h3>
+                        <h3 class="text-[10px] md:text-xs font-bold text-[#45225e] leading-tight md:uppercase md:tracking-wide hyphens-auto break-words w-full px-1">
+                            {item.data.title}
+                        </h3>
                     </div>
                 ))}
             </div>
@@ -171,45 +196,30 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
                             </h3>
                             
                             <div class="relative w-full aspect-[1/1.4] perspective-1000">
-                                
-                                {/* Odkaz pro lightbox - obaluje vše */}
                                 <a data-fslightbox={`gallery-${menu.slug}`} href={menu.data.images[0]} class="block relative w-full h-full">
-                                    
-                                    {/* 1. Falešný papír v pozadí (pokud je více než 1 stránka) */}
                                     {menu.data.images.length > 1 && (
                                         <div class="absolute inset-0 bg-white rounded-lg shadow-md border border-gray-200 transform translate-x-3 translate-y-3 rotate-3 transition duration-300 group-hover:translate-x-4 group-hover:translate-y-4 group-hover:rotate-6 z-0"></div>
                                     )}
-
-                                    {/* 2. Falešný papír v pozadí (pokud jsou více než 2 stránky) */}
                                     {menu.data.images.length > 2 && (
                                         <div class="absolute inset-0 bg-white rounded-lg shadow-md border border-gray-200 transform -translate-x-2 translate-y-2 -rotate-2 transition duration-300 group-hover:-translate-x-3 group-hover:translate-y-3 group-hover:-rotate-4 z-0"></div>
                                     )}
-
-                                    {/* 3. HLAVNÍ OBRÁZEK (První strana) */}
                                     <div class="relative z-10 w-full h-full bg-white rounded-lg shadow-xl overflow-hidden border border-gray-100 transition duration-300 transform group-hover:-translate-y-1">
                                         <img src={menu.data.images[0]} alt={menu.data.title} class="w-full h-full object-cover" />
-                                        
-                                        {/* Overlay při najetí myší */}
                                         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition duration-300 flex items-center justify-center">
                                             <span class="opacity-0 group-hover:opacity-100 bg-[#45225e] text-white px-4 py-2 rounded-full font-bold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition duration-300">
                                                 Prohlédnout
                                             </span>
                                         </div>
                                     </div>
-
-                                    {/* 4. ŠTÍTEK S POČTEM STRAN */}
                                     {menu.data.images.length > 1 && (
                                         <div class="absolute -top-3 -right-3 z-20 bg-[#45225e] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border-2 border-white">
                                             {menu.data.images.length} strany
                                         </div>
                                     )}
                                 </a>
-
-                                {/* Skryté odkazy pro ostatní obrázky v galerii (aby je Lightbox viděl) */}
                                 {menu.data.images.slice(1).map((img) => (
                                     <a data-fslightbox={`gallery-${menu.slug}`} href={img} class="hidden"></a>
                                 ))}
-
                             </div>
                         </div>
                     ))}
@@ -242,7 +252,6 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
                 <h2 class="text-3xl font-bold text-[#45225e] mb-12">Co chystáme?</h2>
                 <div class="flex flex-wrap justify-center gap-8">
                     {plakaty.map((akce) => (
-                        // Oprava podmínky, aby se plakát zobrazil
                         akce.data.poster && (
                             <div class="group relative w-full max-w-md">
                                 <img src={akce.data.poster} alt={akce.data.title} class="w-full h-auto rounded-lg shadow-lg group-hover:shadow-2xl transition duration-300" />
@@ -256,29 +265,18 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
 
     <footer id="kontakt" class="bg-slate-900 text-gray-400 pt-20 pb-10 border-t border-slate-800">
         <div class="max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-12 mb-16">
-            
             <div class="text-center md:text-left">
                 <h4 class="text-white text-lg font-bold mb-6 uppercase tracking-wider">Kontaktujte nás</h4>
                 <div class="space-y-4 text-sm md:text-base">
-                    <p class="flex items-center justify-center md:justify-start gap-3">
-                        <span class="text-[#ad6cdb]">📍</span> 
-                        <span>{settings.address}</span>
-                    </p>
-                    <p class="flex items-center justify-center md:justify-start gap-3">
-                        <span class="text-[#ad6cdb]">📞</span> 
-                        <a href={`tel:${settings.phone}`} class="hover:text-white transition">{settings.phone}</a>
-                    </p>
-                    <p class="flex items-center justify-center md:justify-start gap-3">
-                        <span class="text-[#ad6cdb]">✉️</span> 
-                        <a href={`mailto:${settings.email}`} class="hover:text-white transition">{settings.email}</a>
-                    </p>
+                    <p class="flex items-center justify-center md:justify-start gap-3"><span class="text-[#ad6cdb]">📍</span> <span>{settings.address}</span></p>
+                    <p class="flex items-center justify-center md:justify-start gap-3"><span class="text-[#ad6cdb]">📞</span> <a href={`tel:${settings.phone}`} class="hover:text-white transition">{settings.phone}</a></p>
+                    <p class="flex items-center justify-center md:justify-start gap-3"><span class="text-[#ad6cdb]">✉️</span> <a href={`mailto:${settings.email}`} class="hover:text-white transition">{settings.email}</a></p>
                     <div class="pt-6 flex justify-center md:justify-start gap-6">
                         {settings.facebookLink && <a href={settings.facebookLink} class="text-gray-400 hover:text-[#ad6cdb] transition transform hover:scale-110">Facebook</a>}
                         {settings.instagramLink && <a href={settings.instagramLink} class="text-gray-400 hover:text-[#ad6cdb] transition transform hover:scale-110">Instagram</a>}
                     </div>
                 </div>
             </div>
-
             <div class="text-center md:text-left">
                 <h4 class="text-white text-lg font-bold mb-6 uppercase tracking-wider">Otevírací doba</h4>
                 <ul class="space-y-3 inline-block text-left w-full max-w-xs">
@@ -290,21 +288,17 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
                     ))}
                 </ul>
             </div>
-
             <div class="text-center md:text-left">
                  <h4 class="text-white text-lg font-bold mb-6 uppercase tracking-wider">Tady nás najdete</h4>
                  <div class="h-48 rounded-xl overflow-hidden relative group">
                     {settings.footerImage ? (
                         <img src={settings.footerImage} class="w-full h-full object-cover group-hover:scale-105 transition duration-700" alt="Kde nás najdete" />
                     ) : (
-                        <div class="w-full h-full bg-slate-800 flex items-center justify-center text-slate-600 text-sm">
-                            Nahrajte fotku v adminu
-                        </div>
+                        <div class="w-full h-full bg-slate-800 flex items-center justify-center text-slate-600 text-sm">Nahrajte fotku v adminu</div>
                     )}
                 </div>
             </div>
         </div>
-
         <div class="border-t border-slate-800 pt-8 text-center text-xs text-gray-600">
             <p>&copy; 2025 Rybízák Frýdek-Místek. Všechna práva vyhrazena.</p>
             {settings.companyInfo && <p class="mt-2 text-slate-700">{settings.companyInfo}</p>}
@@ -312,6 +306,22 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fslightbox/3.0.9/index.min.js"></script>
+    
+    <script is:inline>
+        const btn = document.getElementById('mobile-menu-btn');
+        const menu = document.getElementById('mobile-menu');
+
+        btn.addEventListener('click', () => {
+            menu.classList.toggle('hidden');
+        });
+
+        // Zavřít menu po kliknutí na odkaz
+        menu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                menu.classList.add('hidden');
+            });
+        });
+    </script>
 
 </body>
 </html>
