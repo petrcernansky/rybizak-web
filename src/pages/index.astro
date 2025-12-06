@@ -1,29 +1,42 @@
 ---
 import { getEntry, getCollection } from 'astro:content';
 
-// DŮLEŽITÉ: Vynutíme čerstvé načtení při každém vstupu (aby se aktualizoval čas/datum)
+// Vynutíme čerstvé načtení při každém vstupu
 export const prerender = false;
 
 const homepageData = await getEntry('homepage', 'data');
 const settings = homepageData?.data || {};
 
-// --- LOGIKA PRO INFORMAČNÍ LIŠTU (S ČESKÝM ČASEM) ---
-// Získáme aktuální datum v ČR ve formátu YYYY-MM-DD (např. "2025-12-06")
-const todayPrague = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
+// --- ROBUSTNÍ LOGIKA DATA (Funguje pro String i Date object) ---
+
+// 1. Získáme dnešek v ČR jako text "2025-12-06"
+const todayISO = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
+
+// 2. Pomocná funkce, která bezpečně převede cokoliv na "YYYY-MM-DD"
+const toIsoString = (input) => {
+    if (!input) return null;
+    // Převede vstup na Date objekt a z něj vytáhne ISO text
+    return new Date(input).toISOString().split('T')[0];
+};
 
 const showBanner = (() => {
-    // 1. Pokud není text, nezobrazovat
+    // Pokud není text, nezobrazovat
     if (!settings.infoBannerText) return false;
 
-    // 2. Kontrola OD
-    if (settings.infoBannerStart) {
-        // Porovnáváme textově: "2025-12-06" >= "2025-12-01"
-        if (todayPrague < settings.infoBannerStart) return false;
+    // Bezpečně převedeme vstupy z adminu na text
+    const startISO = toIsoString(settings.infoBannerStart);
+    const endISO = toIsoString(settings.infoBannerEnd);
+
+    // Kontrola OD
+    if (startISO) {
+        // Porovnáváme: "2025-12-06" < "2025-12-02" ?
+        if (todayISO < startISO) return false;
     }
 
-    // 3. Kontrola DO
-    if (settings.infoBannerEnd) {
-        if (todayPrague > settings.infoBannerEnd) return false;
+    // Kontrola DO
+    if (endISO) {
+        // Porovnáváme: "2025-12-06" > "2025-12-13" ?
+        if (todayISO > endISO) return false;
     }
 
     return true;
@@ -34,7 +47,6 @@ let menuList = await getCollection('menus');
 const personal = await getCollection('staff');
 const plakaty = await getCollection('concerts');
 
-// Seřazení menu
 menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
 ---
 
