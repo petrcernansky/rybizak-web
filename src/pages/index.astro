@@ -1,15 +1,15 @@
 ---
 import { getEntry, getCollection } from 'astro:content';
 
-// DŮLEŽITÉ: Tohle zajistí, že se datum kontroluje "teď" při každé návštěvě, ne jen při nahrání webu
+// DŮLEŽITÉ: Vynutíme čerstvé načtení při každém vstupu (aby se aktualizoval čas/datum)
 export const prerender = false;
 
 const homepageData = await getEntry('homepage', 'data');
 const settings = homepageData?.data || {};
 
-// --- OPRAVENÁ LOGIKA: Porovnáváme text (YYYY-MM-DD) ---
-// Získáme dnešek jako text, např. "2025-12-04"
-const todayISO = new Date().toISOString().split('T')[0];
+// --- LOGIKA PRO INFORMAČNÍ LIŠTU (S ČESKÝM ČASEM) ---
+// Získáme aktuální datum v ČR ve formátu YYYY-MM-DD (např. "2025-12-06")
+const todayPrague = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
 
 const showBanner = (() => {
     // 1. Pokud není text, nezobrazovat
@@ -17,13 +17,13 @@ const showBanner = (() => {
 
     // 2. Kontrola OD
     if (settings.infoBannerStart) {
-        // Porovnáváme abecedu: "2025-12-04" je větší než "2025-12-01" -> OK
-        if (todayISO < settings.infoBannerStart) return false;
+        // Porovnáváme textově: "2025-12-06" >= "2025-12-01"
+        if (todayPrague < settings.infoBannerStart) return false;
     }
 
     // 3. Kontrola DO
     if (settings.infoBannerEnd) {
-        if (todayISO > settings.infoBannerEnd) return false;
+        if (todayPrague > settings.infoBannerEnd) return false;
     }
 
     return true;
@@ -34,6 +34,7 @@ let menuList = await getCollection('menus');
 const personal = await getCollection('staff');
 const plakaty = await getCollection('concerts');
 
+// Seřazení menu
 menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
 ---
 

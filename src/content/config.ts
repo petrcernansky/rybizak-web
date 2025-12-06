@@ -5,8 +5,8 @@ const homepage = defineCollection({
   schema: z.object({
     logo: z.string().optional(),
     infoBannerText: z.string().optional(),
-    infoBannerStart: z.string().optional(),
-    infoBannerEnd: z.string().optional(),
+    infoBannerStart: z.coerce.string().optional(), // <--- OPRAVENO (Vezme datum a udělá z něj text)
+    infoBannerEnd: z.coerce.string().optional(),   // <--- OPRAVENO
     heroHeadline: z.string(),
     heroSubheadline: z.string().optional(),
     heroImage: z.string().optional(),
