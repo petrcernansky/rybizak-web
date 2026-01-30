@@ -69,10 +69,12 @@ companyInfo: >-
   Jsme plátci DPH. 
 openingHours:
   - day: Pondělí
-    time: zavřeno
+    time: 08:00 - 20:00
   - day: Úterý - Čtvrtek
-    time: 15:00 - 22:00
-  - day: Pátek - Sobota
+    time: 08:00 - 22:00
+  - day: 'Pátek '
+    time: 08:00 - půlnoc
+  - day: 'Sobota: '
     time: 15:00 - půlnoc
   - day: Neděle
     time: zavřeno
