@@ -1,0 +1,14 @@
+---
+description: Auto commit after edits, confirm before push
+alwaysApply: true
+---
+
+# Auto Commit Workflow
+
+- Po dokončení požadovaných změn vždy:
+  - zkontroluj změny,
+  - spusť relevantní kontrolu (lint/test/build pokud dává smysl),
+  - vytvoř commit se smysluplnou zprávou.
+- `push` nikdy nedělej automaticky.
+- Po vytvoření commitu se vždy zeptej uživatele na potvrzení push.
+- Pokud uživatel výslovně řekne, že commit nechce, tento postup přeskoč.
