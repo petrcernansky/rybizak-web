@@ -46,6 +46,7 @@ const benefity = await getCollection('benefits');
 let menuList = await getCollection('menus');
 const personal = await getCollection('staff');
 const plakaty = await getCollection('concerts');
+const hasEvents = plakaty.some((event) => Boolean(event.data.poster));
 
 menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
 ---
@@ -81,7 +82,10 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
 
                 <div class="hidden md:flex space-x-8 items-center">
                     <a href="#menu" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Nabídka</a>
-                    <a href="#akce" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Akce</a>
+                    {hasEvents && (
+                        <a href="#akce" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Akce</a>
+                    )}
+                    <a href="#vernostni-program" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Zákaznická kartička</a>
                     <a href="#kontakt" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Kontakt</a>
                     {settings.reservationLink && (
                         <a href={settings.reservationLink} target="_blank" class="bg-[#45225e] text-white px-6 py-2 rounded-full font-bold text-sm hover:bg-[#351a4a] transition shadow-lg shadow-purple-900/20 transform hover:-translate-y-0.5">
@@ -103,7 +107,10 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
         <div id="mobile-menu" class="hidden md:hidden absolute top-full left-0 w-full bg-white border-b border-gray-100 shadow-xl flex flex-col">
             <div class="px-4 py-6 space-y-4 text-center">
                 <a href="#menu" class="block text-lg font-bold text-gray-800 hover:text-[#45225e]">NABÍDKA</a>
-                <a href="#akce" class="block text-lg font-bold text-gray-800 hover:text-[#45225e]">AKCE</a>
+                {hasEvents && (
+                    <a href="#akce" class="block text-lg font-bold text-gray-800 hover:text-[#45225e]">AKCE</a>
+                )}
+                <a href="#vernostni-program" class="block text-lg font-bold text-gray-800 hover:text-[#45225e]">ZÁKAZNICKÁ KARTIČKA</a>
                 <a href="#kontakt" class="block text-lg font-bold text-gray-800 hover:text-[#45225e]">KONTAKT</a>
                 {settings.reservationLink && (
                     <a href={settings.reservationLink} target="_blank" class="inline-block bg-[#45225e] text-white py-3 px-12 rounded-full font-bold shadow-md mt-2">
@@ -248,7 +255,7 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
         </section>
     )}
 
-    <section class="py-20 bg-[#45225e] text-white">
+    <section id="vernostni-program" class="py-20 bg-[#45225e] text-white">
         <div class="max-w-6xl mx-auto px-4">
             <div class="flex flex-col md:flex-row-reverse items-center gap-16">
                 <div class="md:w-1/2 flex justify-center">
@@ -266,7 +273,7 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
         </div>
     </section>
 
-    {plakaty.length > 0 && (
+    {hasEvents && (
         <section id="akce" class="py-24 bg-white">
             <div class="max-w-7xl mx-auto px-4 text-center">
                 <h2 class="text-3xl font-bold text-[#45225e] mb-12">Co chystáme?</h2>
