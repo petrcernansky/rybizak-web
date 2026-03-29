@@ -1,0 +1,28 @@
+{
+  "rewrites": [
+    {
+      "source": "/zakaznicka-karticka",
+      "destination": "https://web.rybizak.cloud/zakaznicka-karticka"
+    },
+    {
+      "source": "/zakaznicka-karticka/",
+      "destination": "https://web.rybizak.cloud/zakaznicka-karticka"
+    },
+    {
+      "source": "/chytry-kviz",
+      "destination": "https://web.rybizak.cloud/chytry-kviz"
+    },
+    {
+      "source": "/chytry-kviz/",
+      "destination": "https://web.rybizak.cloud/chytry-kviz"
+    },
+    {
+      "source": "/rezervace",
+      "destination": "https://web.rybizak.cloud/rezervace"
+    },
+    {
+      "source": "/rezervace/",
+      "destination": "https://web.rybizak.cloud/rezervace"
+    }
+  ]
+}
