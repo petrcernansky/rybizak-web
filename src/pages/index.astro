@@ -55,7 +55,7 @@ const NC_HEADERS = {
     'Content-Type': 'application/json',
 };
 
-let teamMembers: { name: string; photo: string }[] = [];
+let teamMembers: { name: string; photo: string; email: string }[] = [];
 const employeeByEmail = new Map<string, { jmeno: string; foto: string }>();
 
 try {
@@ -80,6 +80,7 @@ try {
             .map((r) => ({
                 name: (r.jmeno || '').trim(),
                 photo: (r.foto || '').trim(),
+                email: ((r.email || '') as string).trim().toLowerCase(),
             }))
             .filter((r) => r.name);
     }
@@ -89,6 +90,15 @@ try {
 
 type ShiftPerson = { name: string; photo: string; pozice: string };
 let onShiftNow: ShiftPerson[] = [];
+
+function shiftMinutes(od: string, doo: string): number {
+    const [oh, om] = od.split(':').map(Number);
+    const [ch, cm] = doo.split(':').map(Number);
+    let start = oh * 60 + (om || 0);
+    let end = ch * 60 + (cm || 0);
+    if (end <= start) end += 24 * 60;
+    return end - start;
+}
 
 try {
     const czNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague' }));
@@ -108,6 +118,23 @@ try {
             const rec = list[0];
             let smenyRaw: any = {};
             try { smenyRaw = typeof rec.smeny === 'string' ? JSON.parse(rec.smeny) : rec.smeny || {}; } catch { smenyRaw = {}; }
+
+            const monthlyMinutes = new Map<string, number>();
+            for (const [, dayVal] of Object.entries(smenyRaw)) {
+                const day = dayVal as any;
+                if (!day || day.zavreno || !Array.isArray(day.shifts)) continue;
+                for (const shift of day.shifts) {
+                    if (!shift?.od || !shift?.do) continue;
+                    const dur = shiftMinutes(shift.od, shift.do);
+                    for (const p of (shift.lide || [])) {
+                        if (!p?.email) continue;
+                        const em = (p.email as string).trim().toLowerCase();
+                        monthlyMinutes.set(em, (monthlyMinutes.get(em) || 0) + dur);
+                    }
+                }
+            }
+
+            teamMembers.sort((a, b) => (monthlyMinutes.get(b.email) || 0) - (monthlyMinutes.get(a.email) || 0));
 
             const dayData = smenyRaw[String(den)];
             if (dayData && !dayData.zavreno && Array.isArray(dayData.shifts)) {
