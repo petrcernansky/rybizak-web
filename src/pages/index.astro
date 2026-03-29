@@ -49,17 +49,26 @@ const hasEvents = plakaty.some((event) => Boolean(event.data.poster));
 
 menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
 
+const NC_BASE = 'https://app.rybizak.cloud';
+const NC_HEADERS = {
+    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGVOYW1lIjoiYWRtaW4iLCJpYXQiOjE3NzA1ODkzMTIsImV4cCI6MzMzMjgxODkzMTJ9.29n7mNqn-JZ-mUvYdSSXaPC-xrg3XLH_gfA6UPz7vdA',
+    'Content-Type': 'application/json',
+};
+
 let teamMembers: { name: string; photo: string }[] = [];
+const employeeByEmail = new Map<string, { jmeno: string; foto: string }>();
+
 try {
-    const ncRes = await fetch('https://app.rybizak.cloud/api/zamestnanci:list?pageSize=500', {
-        headers: {
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGVOYW1lIjoiYWRtaW4iLCJpYXQiOjE3NzA1ODkzMTIsImV4cCI6MzMzMjgxODkzMTJ9.29n7mNqn-JZ-mUvYdSSXaPC-xrg3XLH_gfA6UPz7vdA',
-            'Content-Type': 'application/json',
-        },
-    });
+    const ncRes = await fetch(NC_BASE + '/api/zamestnanci:list?pageSize=500', { headers: NC_HEADERS });
     if (ncRes.ok) {
         const ncJson = await ncRes.json();
         const all: any[] = Array.isArray(ncJson.data) ? ncJson.data : [];
+
+        for (const r of all) {
+            const email = ((r.email || '') as string).trim().toLowerCase();
+            if (email) employeeByEmail.set(email, { jmeno: (r.jmeno || '').trim(), foto: (r.foto || '').trim() });
+        }
+
         teamMembers = all
             .filter((r) => {
                 const soucasny = r.soucasny === true || r.soucasny === 'true' || r.soucasny === 1;
@@ -75,7 +84,66 @@ try {
             .filter((r) => r.name);
     }
 } catch {
-    // silently fail — section won't render
+    // silently fail
+}
+
+type ShiftPerson = { name: string; photo: string; pozice: string };
+let onShiftNow: ShiftPerson[] = [];
+
+try {
+    const czNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague' }));
+    const rok = czNow.getFullYear();
+    const mesic = czNow.getMonth() + 1;
+    const den = czNow.getDate();
+    const nowMinutes = czNow.getHours() * 60 + czNow.getMinutes();
+
+    const smRes = await fetch(
+        NC_BASE + '/api/vinarna-smeny:list?pageSize=1&filter[rok]=' + rok + '&filter[mesic]=' + mesic,
+        { headers: NC_HEADERS },
+    );
+    if (smRes.ok) {
+        const smJson = await smRes.json();
+        const list: any[] = smJson.data || [];
+        if (list.length > 0) {
+            const rec = list[0];
+            let smenyRaw: any = {};
+            try { smenyRaw = typeof rec.smeny === 'string' ? JSON.parse(rec.smeny) : rec.smeny || {}; } catch { smenyRaw = {}; }
+
+            const dayData = smenyRaw[String(den)];
+            if (dayData && !dayData.zavreno && Array.isArray(dayData.shifts)) {
+                const seen = new Set<string>();
+                for (const shift of dayData.shifts) {
+                    if (!shift || !shift.od || !shift.do) continue;
+                    const [oh, om] = shift.od.split(':').map(Number);
+                    const [ch, cm] = shift.do.split(':').map(Number);
+                    const shiftStart = oh * 60 + (om || 0);
+                    let shiftEnd = ch * 60 + (cm || 0);
+                    if (shiftEnd <= shiftStart) shiftEnd += 24 * 60;
+
+                    if (nowMinutes < shiftStart || nowMinutes >= shiftEnd) continue;
+
+                    for (const p of (shift.lide || [])) {
+                        if (!p || !p.email) continue;
+                        const email = (p.email as string).trim().toLowerCase();
+                        if (seen.has(email)) continue;
+                        seen.add(email);
+
+                        const emp = employeeByEmail.get(email);
+                        const name = (p.jmeno || emp?.jmeno || '').trim();
+                        if (!name) continue;
+
+                        onShiftNow.push({
+                            name,
+                            photo: emp?.foto || '',
+                            pozice: (p.pozice || '').trim(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+} catch {
+    // silently fail
 }
 ---
 
@@ -242,6 +310,37 @@ try {
                             </div>
                         ))}
                     </div>
+                </div>
+            </div>
+        </section>
+    )}
+
+    {onShiftNow.length > 0 && (
+        <section class="py-10 bg-gray-50 border-t border-gray-100">
+            <div class="max-w-7xl mx-auto px-4 text-center">
+                <div class="flex items-center justify-center gap-3 mb-6">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                    </span>
+                    <h2 class="text-xl font-bold text-[#45225e]">Dnes na směně</h2>
+                </div>
+                <div class="flex flex-wrap justify-center gap-8">
+                    {onShiftNow.map((osoba) => (
+                        <div class="flex flex-col items-center">
+                            <div class="w-16 h-16 md:w-20 md:h-20 mb-2">
+                                {osoba.photo ? (
+                                    <img src={osoba.photo} alt={osoba.name} class="w-full h-full rounded-full object-cover border-2 border-green-200 shadow-sm" loading="lazy" />
+                                ) : (
+                                    <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-xl">🍷</div>
+                                )}
+                            </div>
+                            <span class="text-sm font-semibold text-gray-800">{osoba.name}</span>
+                            {osoba.pozice && (
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-[#45225e]/70 mt-0.5">{osoba.pozice}</span>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
         </section>
