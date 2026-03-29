@@ -44,11 +44,39 @@ const showBanner = (() => {
 
 const benefity = await getCollection('benefits');
 let menuList = await getCollection('menus');
-const personal = await getCollection('staff');
 const plakaty = await getCollection('concerts');
 const hasEvents = plakaty.some((event) => Boolean(event.data.poster));
 
 menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
+
+let teamMembers: { name: string; photo: string }[] = [];
+try {
+    const ncRes = await fetch('https://app.rybizak.cloud/api/zamestnanci:list?pageSize=500', {
+        headers: {
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGVOYW1lIjoiYWRtaW4iLCJpYXQiOjE3NzA1ODkzMTIsImV4cCI6MzMzMjgxODkzMTJ9.29n7mNqn-JZ-mUvYdSSXaPC-xrg3XLH_gfA6UPz7vdA',
+            'Content-Type': 'application/json',
+        },
+    });
+    if (ncRes.ok) {
+        const ncJson = await ncRes.json();
+        const all: any[] = Array.isArray(ncJson.data) ? ncJson.data : [];
+        teamMembers = all
+            .filter((r) => {
+                const soucasny = r.soucasny === true || r.soucasny === 'true' || r.soucasny === 1;
+                const pnv = r['pracuje-na-vinarne'] === true || r['pracuje_na_vinarne'] === true || r.pracuje_na_vinarne === true;
+                const v = r.vinarna || {};
+                const isTester = !!v.tester && v.tester !== false;
+                return soucasny && pnv && !isTester;
+            })
+            .map((r) => ({
+                name: (r.jmeno || '').trim(),
+                photo: (r.foto || '').trim(),
+            }))
+            .filter((r) => r.name);
+    }
+} catch {
+    // silently fail — section won't render
+}
 ---
 
 <html lang="cs">
@@ -189,23 +217,22 @@ menuList.sort((a, b) => (a.data.priority || 99) - (b.data.priority || 99));
         </div>
     </section>
 
-    {personal.length > 0 && (
+    {teamMembers.length > 0 && (
         <section class="py-16 bg-white border-t border-gray-100">
             <div class="max-w-7xl mx-auto px-4 text-center">
                 <h2 class="text-3xl font-bold text-[#45225e] mb-12">Náš tým</h2>
                 
                 <div class="flex flex-wrap justify-center gap-12 md:gap-16">
-                    {personal.map((clovek) => (
+                    {teamMembers.map((clovek) => (
                         <div class="flex flex-col items-center group">
                             <div class="relative w-32 h-32 md:w-40 md:h-40 mb-5">
-                                {clovek.data.photo ? (
-                                    <img src={clovek.data.photo} alt={clovek.data.name} class="w-full h-full rounded-full object-cover border-4 border-white shadow-lg group-hover:scale-105 transition duration-300" />
+                                {clovek.photo ? (
+                                    <img src={clovek.photo} alt={clovek.name} class="w-full h-full rounded-full object-cover border-4 border-white shadow-lg group-hover:scale-105 transition duration-300" />
                                 ) : (
                                     <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-3xl">🍷</div>
                                 )}
                             </div>
-                            <h3 class="font-bold text-lg text-gray-900">{clovek.data.name}</h3>
-                            <p class="text-[#45225e] text-xs font-bold uppercase tracking-widest mt-1">{clovek.data.role}</p>
+                            <h3 class="font-bold text-lg text-gray-900">{clovek.name}</h3>
                         </div>
                     ))}
                 </div>
