@@ -117,8 +117,17 @@ export default config({
             directory: 'public/images/menu',
             publicPath: '/images/menu/'
           }),
-          { label: 'Stránky' }
+          {
+            label: 'Stránky',
+            description: 'Použijte pro obrázkové menu. Pokud nahrajete PDF níže, obrázky nejsou potřeba.'
+          }
         ),
+        document: fields.file({
+          label: 'PDF nabídka',
+          directory: 'public/files/menu',
+          publicPath: '/files/menu/',
+          description: 'Volitelné. Nahrajte PDF dokument, pokud má být nabídka jako soubor. Podporované je i vícestránkové PDF.'
+        }),
       },
     }),
     staff: collection({

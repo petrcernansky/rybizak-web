@@ -45,7 +45,8 @@ const menus = defineCollection({
   schema: z.object({
     title: z.string(),
     priority: z.number().optional(), // Nové
-    images: z.array(z.string()),
+    images: z.array(z.string()).optional(),
+    document: z.string().optional(),
   }),
 });
 
