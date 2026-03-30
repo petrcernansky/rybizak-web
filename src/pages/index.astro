@@ -369,9 +369,12 @@ try {
                             const hasProfile = profileByEmail.has(clovek.email);
                             return (
                                 <div class={`flex flex-col items-center group flex-shrink-0${hasProfile ? ' cursor-pointer emp-profile' : ''}`} data-email={hasProfile ? clovek.email : undefined}>
-                                    <div class="w-20 h-20 md:w-24 md:h-24 mb-2">
+                                    <div class="w-20 h-20 md:w-24 md:h-24 mb-2 relative">
                                         {clovek.photo ? (
-                                            <img src={clovek.photo} alt={clovek.name} class="w-full h-full rounded-full object-cover border-[3px] border-white shadow-md group-hover:scale-105 transition duration-300" loading="lazy" />
+                                            <>
+                                                <div class="absolute inset-0 rounded-full bg-gray-200 animate-pulse team-photo-skeleton"></div>
+                                                <img src={clovek.photo} alt={clovek.name} class="relative w-full h-full rounded-full object-cover border-[3px] border-white shadow-md group-hover:scale-105 transition duration-300" loading="lazy" decoding="async" onload="this.previousElementSibling.style.display='none'" />
+                                            </>
                                         ) : (
                                             <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-2xl">🍷</div>
                                         )}
@@ -401,9 +404,12 @@ try {
                         const hasProfile = profileByEmail.has(osoba.email);
                         return (
                             <div class={`flex flex-col items-center${hasProfile ? ' cursor-pointer emp-profile' : ''}`} data-email={hasProfile ? osoba.email : undefined}>
-                                <div class="w-14 h-14 md:w-16 md:h-16 mb-1.5">
+                                <div class="w-14 h-14 md:w-16 md:h-16 mb-1.5 relative">
                                     {osoba.photo ? (
-                                        <img src={osoba.photo} alt={osoba.name} class="w-full h-full rounded-full object-cover border-2 border-green-300 shadow-sm" loading="lazy" />
+                                        <>
+                                            <div class="absolute inset-0 rounded-full bg-gray-200 animate-pulse team-photo-skeleton"></div>
+                                            <img src={osoba.photo} alt={osoba.name} class="relative w-full h-full rounded-full object-cover border-2 border-green-300 shadow-sm" loading="lazy" decoding="async" onload="this.previousElementSibling.style.display='none'" />
+                                        </>
                                     ) : (
                                         <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-lg">🍷</div>
                                     )}
@@ -599,7 +605,7 @@ try {
                 if (heroSrc) {
                     var isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(heroSrc);
                     if (isVideo) {
-                        banner.innerHTML = '<video src="' + heroSrc + '" autoplay muted loop playsinline class="w-full h-full object-cover"></video>';
+                        banner.innerHTML = '<video src="' + heroSrc + '" autoplay muted loop playsinline class="w-full h-full object-cover" style="object-position:top"></video>';
                     } else {
                         var img = document.createElement('img');
                         img.src = heroSrc;
