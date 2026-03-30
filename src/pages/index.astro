@@ -55,8 +55,18 @@ const NC_HEADERS = {
     'Content-Type': 'application/json',
 };
 
+type EmpProfile = {
+    name: string;
+    pozice: string;
+    text: string;
+    img: string;
+    foto: string;
+    vino: { nazev: string; kod: string; obrazek: string; url: string } | null;
+};
+
 let teamMembers: { name: string; photo: string; email: string }[] = [];
 const employeeByEmail = new Map<string, { jmeno: string; foto: string }>();
+const profileByEmail = new Map<string, EmpProfile>();
 
 try {
     const ncRes = await fetch(NC_BASE + '/api/zamestnanci:list?pageSize=500', { headers: NC_HEADERS });
@@ -66,7 +76,30 @@ try {
 
         for (const r of all) {
             const email = ((r.email || '') as string).trim().toLowerCase();
-            if (email) employeeByEmail.set(email, { jmeno: (r.jmeno || '').trim(), foto: (r.foto || '').trim() });
+            if (!email) continue;
+            employeeByEmail.set(email, { jmeno: (r.jmeno || '').trim(), foto: (r.foto || '').trim() });
+
+            const oNasText = ((r.o_nas_text || r['o_nas_text'] || '') as string).trim();
+            const oNasPozice = ((r.o_nas_pozice || r['o_nas_pozice'] || '') as string).trim();
+            const oNasImg = ((r.o_nas_img || r['o_nas_img'] || '') as string).trim();
+            const oNasJmeno = ((r.o_nas_jmeno || r['o_nas_jmeno'] || '') as string).trim();
+            const vino = r.oblibene_vino || r['oblibene_vino'] || null;
+
+            if (oNasText || oNasPozice || oNasImg) {
+                profileByEmail.set(email, {
+                    name: oNasJmeno || (r.jmeno || '').trim(),
+                    pozice: oNasPozice,
+                    text: oNasText,
+                    img: oNasImg,
+                    foto: (r.foto || '').trim(),
+                    vino: vino && (vino.nazev || vino.kod_produktu) ? {
+                        nazev: vino.nazev || '',
+                        kod: vino.kod_produktu || '',
+                        obrazek: vino.url_obrazku || '',
+                        url: vino.url_produktu || '',
+                    } : null,
+                });
+            }
         }
 
         teamMembers = all
@@ -88,7 +121,9 @@ try {
     // silently fail
 }
 
-type ShiftPerson = { name: string; photo: string; pozice: string };
+const profileDataJson = JSON.stringify(Object.fromEntries(profileByEmail));
+
+type ShiftPerson = { name: string; photo: string; pozice: string; email: string };
 let onShiftNow: ShiftPerson[] = [];
 
 function shiftMinutes(od: string, doo: string): number {
@@ -164,6 +199,7 @@ try {
                             name: firstName,
                             photo: emp?.foto || '',
                             pozice: (p.pozice || '').trim(),
+                            email,
                         });
                     }
                 }
@@ -185,6 +221,10 @@ try {
     <style>
         .team-scroll { -ms-overflow-style: none; scrollbar-width: none; }
         .team-scroll::-webkit-scrollbar { display: none; }
+        .emp-profile:hover img { box-shadow: 0 0 0 3px rgba(69,34,94,0.3); }
+        #empModalCard { transition: opacity 0.25s ease, transform 0.25s ease; }
+        #empModalText p { margin-bottom: 0.75em; }
+        #empModalText p:last-child { margin-bottom: 0; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 font-['Inter'] antialiased flex flex-col min-h-screen">
@@ -325,18 +365,21 @@ try {
                 <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10"></div>
                 <div class="team-scroll overflow-x-auto">
                     <div class="flex gap-8 md:gap-10 px-10 py-2 w-max mx-auto">
-                        {teamMembers.map((clovek) => (
-                            <div class="flex flex-col items-center group flex-shrink-0">
-                                <div class="w-20 h-20 md:w-24 md:h-24 mb-2">
-                                    {clovek.photo ? (
-                                        <img src={clovek.photo} alt={clovek.name} class="w-full h-full rounded-full object-cover border-[3px] border-white shadow-md group-hover:scale-105 transition duration-300" loading="lazy" />
-                                    ) : (
-                                        <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-2xl">🍷</div>
-                                    )}
+                        {teamMembers.map((clovek) => {
+                            const hasProfile = profileByEmail.has(clovek.email);
+                            return (
+                                <div class={`flex flex-col items-center group flex-shrink-0${hasProfile ? ' cursor-pointer emp-profile' : ''}`} data-email={hasProfile ? clovek.email : undefined}>
+                                    <div class="w-20 h-20 md:w-24 md:h-24 mb-2">
+                                        {clovek.photo ? (
+                                            <img src={clovek.photo} alt={clovek.name} class="w-full h-full rounded-full object-cover border-[3px] border-white shadow-md group-hover:scale-105 transition duration-300" loading="lazy" />
+                                        ) : (
+                                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-2xl">🍷</div>
+                                        )}
+                                    </div>
+                                    <span class="text-sm font-semibold text-gray-800">{clovek.name}</span>
                                 </div>
-                                <span class="text-sm font-semibold text-gray-800">{clovek.name}</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -354,21 +397,24 @@ try {
                     <span class="text-sm font-bold text-green-800 uppercase tracking-wider">Právě na směně</span>
                 </div>
                 <div class="flex flex-wrap justify-center gap-8">
-                    {onShiftNow.map((osoba) => (
-                        <div class="flex flex-col items-center">
-                            <div class="w-14 h-14 md:w-16 md:h-16 mb-1.5">
-                                {osoba.photo ? (
-                                    <img src={osoba.photo} alt={osoba.name} class="w-full h-full rounded-full object-cover border-2 border-green-300 shadow-sm" loading="lazy" />
-                                ) : (
-                                    <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-lg">🍷</div>
+                    {onShiftNow.map((osoba) => {
+                        const hasProfile = profileByEmail.has(osoba.email);
+                        return (
+                            <div class={`flex flex-col items-center${hasProfile ? ' cursor-pointer emp-profile' : ''}`} data-email={hasProfile ? osoba.email : undefined}>
+                                <div class="w-14 h-14 md:w-16 md:h-16 mb-1.5">
+                                    {osoba.photo ? (
+                                        <img src={osoba.photo} alt={osoba.name} class="w-full h-full rounded-full object-cover border-2 border-green-300 shadow-sm" loading="lazy" />
+                                    ) : (
+                                        <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-lg">🍷</div>
+                                    )}
+                                </div>
+                                <span class="text-xs font-semibold text-gray-800">{osoba.name}</span>
+                                {osoba.pozice && (
+                                    <span class="text-[10px] font-bold uppercase tracking-wider text-green-700/60 mt-0.5">{osoba.pozice}</span>
                                 )}
                             </div>
-                            <span class="text-xs font-semibold text-gray-800">{osoba.name}</span>
-                            {osoba.pozice && (
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-green-700/60 mt-0.5">{osoba.pozice}</span>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </section>
@@ -479,8 +525,42 @@ try {
         </div>
     </footer>
 
+    <!-- Employee profile modal -->
+    <div id="empModal" class="fixed inset-0 z-[100] hidden">
+        <div id="empModalOverlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div class="relative z-10 flex items-end sm:items-center justify-center min-h-full p-0 sm:p-4">
+            <div id="empModalCard" class="bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl max-w-md w-full max-h-[92vh] overflow-y-auto relative transform transition-all duration-300 translate-y-4 sm:scale-95 opacity-0">
+                <button id="empModalClose" class="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm flex items-center justify-center text-white transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+                <div id="empModalBanner" class="w-full aspect-[4/3] overflow-hidden sm:rounded-t-2xl rounded-t-2xl bg-gray-100 relative"></div>
+                <div id="empModalBody" class="px-6 pb-6">
+                    <div id="empModalAvatarWrap" class="text-center -mt-12 relative z-10 mb-3">
+                        <div class="w-24 h-24 rounded-full border-4 border-white shadow-lg mx-auto overflow-hidden bg-gray-100">
+                            <img id="empModalAvatarImg" src="" alt="" class="w-full h-full object-cover" />
+                        </div>
+                    </div>
+                    <div class="text-center pt-2">
+                        <h3 id="empModalName" class="text-2xl font-bold text-[#45225e]"></h3>
+                        <p id="empModalPozice" class="text-sm font-semibold text-[#ad6cdb] uppercase tracking-wider mt-1"></p>
+                    </div>
+                    <div id="empModalText" class="text-gray-600 text-sm leading-relaxed mt-4"></div>
+                    <div id="empModalVino" class="hidden border-t border-gray-100 pt-4 mt-5">
+                        <p class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Oblíbené víno</p>
+                        <a id="empModalVinoLink" href="#" target="_blank" rel="noopener" class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition group">
+                            <img id="empModalVinoImg" src="" alt="" class="w-14 h-14 object-contain rounded-lg bg-white shadow-sm flex-shrink-0" />
+                            <span id="empModalVinoNazev" class="text-sm font-semibold text-gray-800 group-hover:text-[#45225e] transition"></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fslightbox/3.0.9/index.min.js"></script>
-    
+
+    <script id="empProfileData" type="application/json" set:html={profileDataJson}></script>
+
     <script is:inline>
         const btn = document.getElementById('mobile-menu-btn');
         const menu = document.getElementById('mobile-menu');
@@ -494,6 +574,111 @@ try {
                 menu.classList.add('hidden');
             });
         });
+
+        (function() {
+            var profiles = {};
+            try { profiles = JSON.parse(document.getElementById('empProfileData').textContent || '{}'); } catch(e) {}
+
+            var modal = document.getElementById('empModal');
+            var overlay = document.getElementById('empModalOverlay');
+            var card = document.getElementById('empModalCard');
+            var closeBtn = document.getElementById('empModalClose');
+            var banner = document.getElementById('empModalBanner');
+            var avatarWrap = document.getElementById('empModalAvatarWrap');
+            var avatarImg = document.getElementById('empModalAvatarImg');
+            var body = document.getElementById('empModalBody');
+
+            function openModal(email) {
+                var p = profiles[email];
+                if (!p) return;
+
+                var hasBannerImg = !!p.img;
+                var heroSrc = p.img || p.foto || '';
+
+                banner.innerHTML = '';
+                if (heroSrc) {
+                    var isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(heroSrc);
+                    if (isVideo) {
+                        banner.innerHTML = '<video src="' + heroSrc + '" autoplay muted loop playsinline class="w-full h-full object-cover"></video>';
+                    } else {
+                        var img = document.createElement('img');
+                        img.src = heroSrc;
+                        img.alt = p.name;
+                        img.className = 'w-full h-full object-cover';
+                        banner.appendChild(img);
+                    }
+                    banner.style.display = '';
+                } else {
+                    banner.style.display = 'none';
+                }
+
+                if (p.foto && hasBannerImg) {
+                    avatarImg.src = p.foto;
+                    avatarImg.alt = p.name;
+                    avatarWrap.style.display = '';
+                } else {
+                    avatarWrap.style.display = 'none';
+                    body.style.paddingTop = heroSrc ? '1.5rem' : '2rem';
+                }
+                if (p.foto && hasBannerImg) body.style.paddingTop = '';
+
+                document.getElementById('empModalName').textContent = p.name;
+                var poziceEl = document.getElementById('empModalPozice');
+                poziceEl.textContent = p.pozice || '';
+                poziceEl.style.display = p.pozice ? '' : 'none';
+
+                var textEl = document.getElementById('empModalText');
+                if (p.text) {
+                    textEl.innerHTML = p.text;
+                    textEl.style.display = '';
+                } else {
+                    textEl.style.display = 'none';
+                }
+
+                var vinoEl = document.getElementById('empModalVino');
+                if (p.vino && p.vino.nazev) {
+                    document.getElementById('empModalVinoImg').src = p.vino.obrazek || '';
+                    document.getElementById('empModalVinoNazev').textContent = p.vino.nazev;
+                    document.getElementById('empModalVinoLink').href = p.vino.url || '#';
+                    vinoEl.classList.remove('hidden');
+                } else {
+                    vinoEl.classList.add('hidden');
+                }
+
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0) scale(1)';
+                    });
+                });
+            }
+
+            function closeModal() {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(1rem) scale(0.97)';
+                setTimeout(function() {
+                    modal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                    card.style.transform = 'translateY(1rem) scale(0.95)';
+                }, 250);
+            }
+
+            closeBtn.addEventListener('click', closeModal);
+            overlay.addEventListener('click', closeModal);
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+            });
+
+            document.querySelectorAll('.emp-profile').forEach(function(el) {
+                el.addEventListener('click', function() {
+                    var email = el.getAttribute('data-email');
+                    if (email) openModal(email);
+                });
+            });
+        })();
     </script>
 
 </body>
