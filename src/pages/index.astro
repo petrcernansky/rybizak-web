@@ -86,12 +86,14 @@ const menuList: MenuCard[] = rawMenuList
 
 type HomepageReviewApiItem = {
     comment?: string;
+    customerName?: string;
     overallScore?: number;
     createdAt?: string;
     visitStart?: string;
 };
 
 type HomepageReviewCard = {
+    author: string;
     comment: string;
     starLabel: string;
     starValue: number;
@@ -104,6 +106,17 @@ const normalizeHomepageReviewComment = (value: unknown) =>
     String(value || '')
         .replace(/\s+/g, ' ')
         .trim();
+
+const formatHomepageReviewAuthor = (value: unknown) => {
+    const parts = String(value || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    if (!parts.length) return 'Host';
+    const firstName = parts[0];
+    const surname = parts.length > 1 ? parts[parts.length - 1] : '';
+    return surname ? `${firstName} ${surname.charAt(0).toUpperCase()}.` : firstName;
+};
 
 const mapHomepageReviewStars = (score: number) => {
     if (score >= 4) return { label: '5,0', value: 5 };
@@ -139,6 +152,7 @@ try {
                 if (!comment || !stars) return [];
 
                 return [{
+                    author: formatHomepageReviewAuthor(review.customerName),
                     comment,
                     starLabel: stars.label,
                     starValue: stars.value,
@@ -654,9 +668,12 @@ try {
                             <div class="absolute right-0 top-0 h-28 w-28 rounded-full bg-[#ad6cdb]/10 blur-3xl"></div>
                             <div class="relative z-10 flex h-full flex-col">
                                 <div class="flex items-center justify-between gap-4">
-                                    <span class="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500 shadow-sm">
-                                        Ověřené hodnocení
-                                    </span>
+                                    <div>
+                                        <div class="text-lg font-bold text-[#45225e]">{review.author}</div>
+                                        <span class="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500 shadow-sm">
+                                            Ověřené hodnocení
+                                        </span>
+                                    </div>
                                     {review.publishedAt && (
                                         <span class="text-sm font-medium text-slate-500">{review.publishedAt}</span>
                                     )}
