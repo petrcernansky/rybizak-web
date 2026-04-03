@@ -1,46 +1,17 @@
 ---
 import { getEntry, getCollection } from 'astro:content';
 
-// Vynutíme čerstvé načtení při každém vstupu
-export const prerender = false;
-
 const homepageData = await getEntry('homepage', 'data');
 const settings = homepageData?.data || {};
 
-// --- ROBUSTNÍ LOGIKA DATA (Funguje pro String i Date object) ---
-
-// 1. Získáme dnešek v ČR jako text "2025-12-06"
-const todayISO = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
-
-// 2. Pomocná funkce, která bezpečně převede cokoliv na "YYYY-MM-DD"
 const toIsoString = (input) => {
     if (!input) return null;
-    // Převede vstup na Date objekt a z něj vytáhne ISO text
     return new Date(input).toISOString().split('T')[0];
 };
 
-const showBanner = (() => {
-    // Pokud není text, nezobrazovat
-    if (!settings.infoBannerText) return false;
-
-    // Bezpečně převedeme vstupy z adminu na text
-    const startISO = toIsoString(settings.infoBannerStart);
-    const endISO = toIsoString(settings.infoBannerEnd);
-
-    // Kontrola OD
-    if (startISO) {
-        // Porovnáváme: "2025-12-06" < "2025-12-02" ?
-        if (todayISO < startISO) return false;
-    }
-
-    // Kontrola DO
-    if (endISO) {
-        // Porovnáváme: "2025-12-06" > "2025-12-13" ?
-        if (todayISO > endISO) return false;
-    }
-
-    return true;
-})();
+const showBanner = Boolean(settings.infoBannerText);
+const infoBannerStartISO = toIsoString(settings.infoBannerStart) || '';
+const infoBannerEndISO = toIsoString(settings.infoBannerEnd) || '';
 
 const benefity = await getCollection('benefits');
 const rawMenuList = await getCollection('menus');
@@ -84,247 +55,8 @@ const menuList: MenuCard[] = rawMenuList
     .filter((menu) => menu.pageCount > 0 || Boolean(menu.document))
     .sort((a, b) => a.priority - b.priority);
 
-type HomepageReviewApiItem = {
-    comment?: string;
-    customerName?: string;
-    overallScore?: number;
-    createdAt?: string;
-    visitStart?: string;
-};
-
-type HomepageReviewCard = {
-    author: string;
-    comment: string;
-    starLabel: string;
-    starValue: number;
-    publishedAt: string;
-};
-
-const REVIEW_DASHBOARD_URL = 'https://web.rybizak.cloud/api/vinarna/review/dashboard?limit=30';
-
-const normalizeHomepageReviewComment = (value: unknown) =>
-    String(value || '')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-const formatHomepageReviewAuthor = (value: unknown) => {
-    const parts = String(value || '')
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean);
-    if (!parts.length) return 'Host';
-    const firstName = parts[0];
-    const surname = parts.length > 1 ? parts[parts.length - 1] : '';
-    return surname ? `${firstName} ${surname.charAt(0).toUpperCase()}.` : firstName;
-};
-
-const mapHomepageReviewStars = (score: number) => {
-    if (score >= 4) return { label: '5,0', value: 5 };
-    if (score >= 3) return { label: '4,5', value: 4.5 };
-    return null;
-};
-
-const formatHomepageReviewDate = (value: unknown) => {
-    const raw = String(value || '').trim();
-    if (!raw) return '';
-    const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) return '';
-    return new Intl.DateTimeFormat('cs-CZ', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'Europe/Prague',
-    }).format(parsed);
-};
-
-let latestGuestReviews: HomepageReviewCard[] = [];
-
-try {
-    const reviewRes = await fetch(REVIEW_DASHBOARD_URL);
-    if (reviewRes.ok) {
-        const reviewJson = await reviewRes.json();
-        const reviews: HomepageReviewApiItem[] = Array.isArray(reviewJson?.reviews) ? reviewJson.reviews : [];
-
-        latestGuestReviews = reviews
-            .flatMap((review) => {
-                const comment = normalizeHomepageReviewComment(review.comment);
-                const stars = mapHomepageReviewStars(Number(review.overallScore || 0) || 0);
-                if (!comment || !stars) return [];
-
-                return [{
-                    author: formatHomepageReviewAuthor(review.customerName),
-                    comment,
-                    starLabel: stars.label,
-                    starValue: stars.value,
-                    publishedAt: formatHomepageReviewDate(review.createdAt || review.visitStart || ''),
-                }];
-            })
-            .slice(0, 3);
-    }
-} catch {
-    // silently fail
-}
-
-const NC_BASE = 'https://app.rybizak.cloud';
-const NC_HEADERS = {
-    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGVOYW1lIjoiYWRtaW4iLCJpYXQiOjE3NzA1ODkzMTIsImV4cCI6MzMzMjgxODkzMTJ9.29n7mNqn-JZ-mUvYdSSXaPC-xrg3XLH_gfA6UPz7vdA',
-    'Content-Type': 'application/json',
-};
-
-type EmpProfile = {
-    name: string;
-    pozice: string;
-    text: string;
-    img: string;
-    foto: string;
-    vino: { nazev: string; kod: string; obrazek: string; url: string } | null;
-};
-
-let teamMembers: { name: string; photo: string; email: string }[] = [];
-const employeeByEmail = new Map<string, { jmeno: string; foto: string }>();
-const profileByEmail = new Map<string, EmpProfile>();
-
-try {
-    const ncRes = await fetch(NC_BASE + '/api/zamestnanci:list?pageSize=500', { headers: NC_HEADERS });
-    if (ncRes.ok) {
-        const ncJson = await ncRes.json();
-        const all: any[] = Array.isArray(ncJson.data) ? ncJson.data : [];
-
-        for (const r of all) {
-            const email = ((r.email || '') as string).trim().toLowerCase();
-            if (!email) continue;
-            employeeByEmail.set(email, { jmeno: (r.jmeno || '').trim(), foto: (r.foto || '').trim() });
-
-            const oNasText = ((r.o_nas_text || r['o_nas_text'] || '') as string).trim();
-            const oNasPozice = ((r.o_nas_pozice || r['o_nas_pozice'] || '') as string).trim();
-            const oNasImg = ((r.o_nas_img || r['o_nas_img'] || '') as string).trim();
-            const oNasJmeno = ((r.o_nas_jmeno || r['o_nas_jmeno'] || '') as string).trim();
-            const vino = r.oblibene_vino || r['oblibene_vino'] || null;
-
-            if (oNasText || oNasPozice || oNasImg) {
-                profileByEmail.set(email, {
-                    name: oNasJmeno || (r.jmeno || '').trim(),
-                    pozice: oNasPozice,
-                    text: oNasText,
-                    img: oNasImg,
-                    foto: (r.foto || '').trim(),
-                    vino: vino && (vino.nazev || vino.kod_produktu) ? {
-                        nazev: vino.nazev || '',
-                        kod: vino.kod_produktu || '',
-                        obrazek: vino.url_obrazku || '',
-                        url: vino.url_produktu || '',
-                    } : null,
-                });
-            }
-        }
-
-        teamMembers = all
-            .filter((r) => {
-                const soucasny = r.soucasny === true || r.soucasny === 'true' || r.soucasny === 1;
-                const pnv = r['pracuje-na-vinarne'] === true || r['pracuje_na_vinarne'] === true || r.pracuje_na_vinarne === true;
-                const v = r.vinarna || {};
-                const isTester = !!v.tester && v.tester !== false;
-                return soucasny && pnv && !isTester;
-            })
-            .map((r) => ({
-                name: (r.jmeno || '').trim(),
-                photo: (r.foto || '').trim(),
-                email: ((r.email || '') as string).trim().toLowerCase(),
-            }))
-            .filter((r) => r.name);
-    }
-} catch {
-    // silently fail
-}
-
-const profileDataJson = JSON.stringify(Object.fromEntries(profileByEmail));
-
-type ShiftPerson = { name: string; photo: string; pozice: string; email: string };
-let onShiftNow: ShiftPerson[] = [];
-
-function shiftMinutes(od: string, doo: string): number {
-    const [oh, om] = od.split(':').map(Number);
-    const [ch, cm] = doo.split(':').map(Number);
-    let start = oh * 60 + (om || 0);
-    let end = ch * 60 + (cm || 0);
-    if (end <= start) end += 24 * 60;
-    return end - start;
-}
-
-try {
-    const czNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Prague' }));
-    const rok = czNow.getFullYear();
-    const mesic = czNow.getMonth() + 1;
-    const den = czNow.getDate();
-    const nowMinutes = czNow.getHours() * 60 + czNow.getMinutes();
-
-    const smRes = await fetch(
-        NC_BASE + '/api/vinarna-smeny:list?pageSize=1&filter[rok]=' + rok + '&filter[mesic]=' + mesic,
-        { headers: NC_HEADERS },
-    );
-    if (smRes.ok) {
-        const smJson = await smRes.json();
-        const list: any[] = smJson.data || [];
-        if (list.length > 0) {
-            const rec = list[0];
-            let smenyRaw: any = {};
-            try { smenyRaw = typeof rec.smeny === 'string' ? JSON.parse(rec.smeny) : rec.smeny || {}; } catch { smenyRaw = {}; }
-
-            const monthlyMinutes = new Map<string, number>();
-            for (const [, dayVal] of Object.entries(smenyRaw)) {
-                const day = dayVal as any;
-                if (!day || day.zavreno || !Array.isArray(day.shifts)) continue;
-                for (const shift of day.shifts) {
-                    if (!shift?.od || !shift?.do) continue;
-                    const dur = shiftMinutes(shift.od, shift.do);
-                    for (const p of (shift.lide || [])) {
-                        if (!p?.email) continue;
-                        const em = (p.email as string).trim().toLowerCase();
-                        monthlyMinutes.set(em, (monthlyMinutes.get(em) || 0) + dur);
-                    }
-                }
-            }
-
-            teamMembers.sort((a, b) => (monthlyMinutes.get(b.email) || 0) - (monthlyMinutes.get(a.email) || 0));
-
-            const dayData = smenyRaw[String(den)];
-            if (dayData && !dayData.zavreno && Array.isArray(dayData.shifts)) {
-                const seen = new Set<string>();
-                for (const shift of dayData.shifts) {
-                    if (!shift || !shift.od || !shift.do) continue;
-                    const [oh, om] = shift.od.split(':').map(Number);
-                    const [ch, cm] = shift.do.split(':').map(Number);
-                    const shiftStart = oh * 60 + (om || 0);
-                    let shiftEnd = ch * 60 + (cm || 0);
-                    if (shiftEnd <= shiftStart) shiftEnd += 24 * 60;
-
-                    if (nowMinutes < shiftStart || nowMinutes >= shiftEnd) continue;
-
-                    for (const p of (shift.lide || [])) {
-                        if (!p || !p.email) continue;
-                        const email = (p.email as string).trim().toLowerCase();
-                        if (seen.has(email)) continue;
-                        seen.add(email);
-
-                        const emp = employeeByEmail.get(email);
-                        const fullName = (emp?.jmeno || p.jmeno || '').trim();
-                        const firstName = fullName.split(/\s+/)[0] || '';
-                        if (!firstName) continue;
-
-                        onShiftNow.push({
-                            name: firstName,
-                            photo: emp?.foto || '',
-                            pozice: (p.pozice || '').trim(),
-                            email,
-                        });
-                    }
-                }
-            }
-        }
-    }
-} catch {
-    // silently fail
-}
+const TEAM_SKELETON_COUNT = 8;
+const REVIEW_SKELETON_COUNT = 3;
 ---
 
 <html lang="cs">
@@ -333,20 +65,50 @@ try {
     <meta name="viewport" content="width=device-width" />
     <title>Rybízák Frýdek-Místek</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         .team-scroll { -ms-overflow-style: none; scrollbar-width: none; }
         .team-scroll::-webkit-scrollbar { display: none; }
+        .review-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .review-scroll::-webkit-scrollbar { display: none; }
         .emp-profile:hover img { box-shadow: 0 0 0 3px rgba(69,34,94,0.3); }
+        .is-loading::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.72), transparent);
+            transform: translateX(-100%);
+            animation: shimmer 1.3s infinite;
+        }
         #empModalCard { transition: opacity 0.25s ease, transform 0.25s ease; }
+        #empModalBanner.emp-modal-banner-video { background: linear-gradient(180deg, #2f1844 0%, #140a1e 100%); }
         #empModalText p { margin-bottom: 0.75em; }
         #empModalText p:last-child { margin-bottom: 0; }
+        #empModalText {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 8;
+            overflow: hidden;
+        }
+        @media (min-width: 640px) {
+            #empModalText { -webkit-line-clamp: 10; }
+        }
+        @keyframes shimmer {
+            100% { transform: translateX(100%); }
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 font-['Inter'] antialiased flex flex-col min-h-screen">
 
     {showBanner && (
-        <div class="bg-black text-yellow-300 text-center py-3 px-4 font-bold text-sm relative z-[60]">
+        <div
+            class="hidden bg-black text-yellow-300 text-center py-3 px-4 font-bold text-sm relative z-[60]"
+            data-banner
+            data-banner-start={infoBannerStartISO}
+            data-banner-end={infoBannerEndISO}
+        >
             {settings.infoBannerText}
         </div>
     )}
@@ -357,7 +119,7 @@ try {
                 <div class="flex-shrink-0 flex items-center">
                     <a href="#" class="block hover:opacity-80 transition">
                         {settings.logo ? (
-                            <img class="h-10 w-auto md:h-12" src={settings.logo} alt="Rybízák Logo" />
+                            <img class="h-10 w-auto md:h-12" src={settings.logo} alt="Rybízák Logo" width="140" height="48" decoding="async" />
                         ) : (
                             <span class="text-2xl font-bold text-[#45225e]">RYBÍZÁK</span>
                         )}
@@ -412,7 +174,7 @@ try {
     <header class="relative h-[85vh] flex items-center justify-center">
         {settings.heroImage && (
             <div class="absolute inset-0 z-0">
-                <img src={settings.heroImage} alt="Úvod" class="w-full h-full object-cover" />
+                <img src={settings.heroImage} alt="Úvod" class="w-full h-full object-cover" fetchpriority="high" decoding="async" />
                 <div class="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/40 to-transparent"></div>
             </div>
         )}
@@ -441,7 +203,7 @@ try {
                 {benefity.map((item) => (
                     <div class="flex flex-col items-center justify-start group h-full px-1">
                         {item.data.icon && (
-                            <img src={item.data.icon} alt={item.data.title} class="h-8 w-8 md:h-12 md:w-12 mb-2 md:mb-3 object-contain opacity-80 group-hover:opacity-100 transition" />
+                            <img src={item.data.icon} alt={item.data.title} class="h-8 w-8 md:h-12 md:w-12 mb-2 md:mb-3 object-contain opacity-80 group-hover:opacity-100 transition" decoding="async" />
                         )}
                         <h3 class="text-[11px] md:text-xs font-bold text-[#45225e] leading-tight normal-case break-words w-full">
                             {item.data.title}
@@ -459,7 +221,7 @@ try {
                     {settings.aboutImage && (
                         <>
                             <div class="absolute inset-0 bg-[#45225e] rounded-3xl transform rotate-3 translate-x-2 translate-y-2 opacity-20"></div>
-                            <img src={settings.aboutImage} alt="O nás" class="relative rounded-3xl shadow-xl w-full object-cover aspect-[4/3]" />
+                            <img src={settings.aboutImage} alt="O nás" class="relative rounded-3xl shadow-xl w-full object-cover aspect-[4/3]" loading="lazy" decoding="async" />
                         </>
                     )}
                 </div>
@@ -473,40 +235,25 @@ try {
         </div>
     </section>
 
-    {teamMembers.length > 0 && (
-        <section class="py-12 bg-white border-t border-gray-100">
+    <section class="py-12 bg-white border-t border-gray-100" data-team-section hidden>
             <h2 class="text-3xl font-bold text-[#45225e] text-center mb-8">Náš tým</h2>
             <div class="relative">
                 <div class="pointer-events-none absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10"></div>
                 <div class="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10"></div>
-                <div class="team-scroll overflow-x-auto">
-                    <div class="flex gap-8 md:gap-10 px-10 py-2 w-max mx-auto">
-                        {teamMembers.map((clovek) => {
-                            const hasProfile = profileByEmail.has(clovek.email);
-                            return (
-                                <div class={`flex flex-col items-center group flex-shrink-0${hasProfile ? ' cursor-pointer emp-profile' : ''}`} data-email={hasProfile ? clovek.email : undefined}>
-                                    <div class="w-20 h-20 md:w-24 md:h-24 mb-2 relative">
-                                        {clovek.photo ? (
-                                            <>
-                                                <div class="absolute inset-0 rounded-full bg-gray-200 animate-pulse team-photo-skeleton"></div>
-                                                <img src={clovek.photo} alt={clovek.name} class="relative w-full h-full rounded-full object-cover border-[3px] border-white shadow-md group-hover:scale-105 transition duration-300" loading="lazy" decoding="async" onload="this.previousElementSibling.style.display='none'" />
-                                            </>
-                                        ) : (
-                                            <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-2xl">🍷</div>
-                                        )}
-                                    </div>
-                                    <span class="text-sm font-semibold text-gray-800">{clovek.name}</span>
-                                </div>
-                            );
-                        })}
+                <div class="team-scroll overflow-x-auto" data-team-track>
+                    <div class="flex gap-8 md:gap-10 px-10 py-2 w-max mx-auto" data-team-list>
+                        {Array.from({ length: TEAM_SKELETON_COUNT }).map(() => (
+                            <div class="flex flex-col items-center group flex-shrink-0">
+                                <div class="w-20 h-20 md:w-24 md:h-24 mb-2 relative overflow-hidden rounded-full bg-gray-200 is-loading"></div>
+                                <div class="relative h-4 w-20 overflow-hidden rounded-full bg-gray-200 is-loading"></div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
         </section>
-    )}
 
-    {onShiftNow.length > 0 && (
-        <section class="pt-6 pb-12 bg-white">
+        <section class="pt-6 pb-12 bg-white" data-shift-section hidden>
             <div class="max-w-7xl mx-auto px-4 text-center">
                 <div class="inline-flex items-center gap-2.5 bg-green-50 border border-green-200 rounded-full px-5 py-2 mb-6">
                     <span class="relative flex h-2 w-2">
@@ -515,32 +262,9 @@ try {
                     </span>
                     <span class="text-sm font-bold text-green-800 uppercase tracking-wider">Právě na směně</span>
                 </div>
-                <div class="flex flex-wrap justify-center gap-8">
-                    {onShiftNow.map((osoba) => {
-                        const hasProfile = profileByEmail.has(osoba.email);
-                        return (
-                            <div class={`flex flex-col items-center${hasProfile ? ' cursor-pointer emp-profile' : ''}`} data-email={hasProfile ? osoba.email : undefined}>
-                                <div class="w-14 h-14 md:w-16 md:h-16 mb-1.5 relative">
-                                    {osoba.photo ? (
-                                        <>
-                                            <div class="absolute inset-0 rounded-full bg-gray-200 animate-pulse team-photo-skeleton"></div>
-                                            <img src={osoba.photo} alt={osoba.name} class="relative w-full h-full rounded-full object-cover border-2 border-green-300 shadow-sm" loading="lazy" decoding="async" onload="this.previousElementSibling.style.display='none'" />
-                                        </>
-                                    ) : (
-                                        <div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-lg">🍷</div>
-                                    )}
-                                </div>
-                                <span class="text-xs font-semibold text-gray-800">{osoba.name}</span>
-                                {osoba.pozice && (
-                                    <span class="text-[10px] font-bold uppercase tracking-wider text-green-700/60 mt-0.5">{osoba.pozice}</span>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
+                <div class="flex flex-wrap justify-center gap-8" data-shift-list></div>
             </div>
         </section>
-    )}
 
    {menuList.length > 0 && (
         <section id="menu" class="py-24 bg-gray-50">
@@ -622,7 +346,7 @@ try {
                                                 <div class="absolute inset-0 bg-white rounded-[1.75rem] shadow-md border border-gray-200 transform -translate-x-2 translate-y-2 -rotate-2 transition duration-300 group-hover:-translate-x-3 group-hover:translate-y-3 group-hover:-rotate-4 z-0"></div>
                                             )}
                                             <div class="relative z-10 w-full h-full bg-white rounded-[1.75rem] shadow-xl overflow-hidden border border-gray-100 transition duration-300 transform group-hover:-translate-y-1">
-                                                <img src={menu.images[0]} alt={menu.title} class="w-full h-full object-cover" />
+                                                <img src={menu.images[0]} alt={menu.title} class="w-full h-full object-cover" loading="lazy" decoding="async" />
                                                 <div class="absolute inset-0 bg-gradient-to-t from-black/35 via-black/0 to-black/0"></div>
                                                 <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition duration-300 flex items-center justify-center">
                                                     <span class="opacity-0 group-hover:opacity-100 bg-[#45225e] text-white px-4 py-2 rounded-full font-bold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition duration-300">
@@ -649,57 +373,62 @@ try {
         </section>
     )}
 
-    {latestGuestReviews.length > 0 && (
-        <section id="recenze" class="py-24 bg-white overflow-hidden">
+    <section id="recenze" class="py-24 bg-white overflow-hidden" data-reviews-section hidden>
             <div class="max-w-7xl mx-auto px-4">
                 <div class="max-w-3xl mx-auto text-center mb-14">
                     <span class="inline-flex items-center rounded-full border border-[#45225e]/10 bg-[#faf6ff] px-4 py-2 text-xs font-bold uppercase tracking-[0.35em] text-[#7a49a3]">
                         Nejnovější recenze
                     </span>
                     <h2 class="mt-6 text-3xl md:text-4xl font-bold text-[#45225e]">Co o nás říkají hosté</h2>
-                    <p class="mt-4 text-base md:text-lg text-slate-600 leading-8">
-                        Ukazujeme jen nejnovější textové recenze s nejvyšším hodnocením.
-                    </p>
                 </div>
 
-                <div class="grid gap-6 lg:grid-cols-3">
-                    {latestGuestReviews.map((review) => (
-                        <article class="relative h-full rounded-[2rem] border border-[#45225e]/10 bg-gradient-to-br from-[#fffaf5] via-white to-[#faf6ff] p-7 shadow-[0_24px_80px_rgba(69,34,94,0.10)]">
-                            <div class="absolute right-0 top-0 h-28 w-28 rounded-full bg-[#ad6cdb]/10 blur-3xl"></div>
+                <div class="mb-8 hidden justify-end gap-3" data-review-carousel-controls>
+                    <button
+                        type="button"
+                        class="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#45225e]/10 bg-white text-[#45225e] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#faf6ff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                        data-review-carousel-prev
+                        aria-label="Zobrazit předchozí recenze"
+                    >
+                        <span aria-hidden="true" class="text-xl leading-none">←</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#45225e]/10 bg-white text-[#45225e] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#faf6ff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                        data-review-carousel-next
+                        aria-label="Zobrazit další recenze"
+                    >
+                        <span aria-hidden="true" class="text-xl leading-none">→</span>
+                    </button>
+                </div>
+
+                <div
+                    id="guest-reviews-track"
+                    data-review-carousel="false"
+                    data-review-list
+                    class="grid gap-6 lg:grid-cols-3"
+                >
+                    {Array.from({ length: REVIEW_SKELETON_COUNT }).map(() => (
+                        <article class="relative h-full overflow-hidden rounded-[2rem] border border-[#45225e]/10 bg-gradient-to-br from-[#fffaf5] via-white to-[#faf6ff] p-7 shadow-[0_24px_80px_rgba(69,34,94,0.10)] is-loading">
                             <div class="relative z-10 flex h-full flex-col">
                                 <div class="flex items-center justify-between gap-4">
-                                    <div>
-                                        <div class="text-lg font-bold text-[#45225e]">{review.author}</div>
-                                        <span class="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500 shadow-sm">
-                                            Ověřené hodnocení
-                                        </span>
+                                    <div class="space-y-3">
+                                        <div class="h-5 w-32 rounded-full bg-white/90"></div>
+                                        <div class="h-7 w-28 rounded-full bg-white/90"></div>
                                     </div>
-                                    {review.publishedAt && (
-                                        <span class="text-sm font-medium text-slate-500">{review.publishedAt}</span>
-                                    )}
+                                    <div class="h-4 w-24 rounded-full bg-white/90"></div>
                                 </div>
-
-                                <div class="mt-6 flex items-center gap-3">
-                                    <span
-                                        class="select-none text-2xl font-black leading-none tracking-[0.2em] text-transparent bg-clip-text"
-                                        style={`background-image: linear-gradient(90deg, #f59e0b ${review.starValue * 20}%, #e5e7eb ${review.starValue * 20}%);`}
-                                        aria-hidden="true"
-                                    >
-                                        ★★★★★
-                                    </span>
-                                    <span class="text-sm font-bold text-amber-600">{review.starLabel} / 5</span>
+                                <div class="mt-6 h-6 w-24 rounded-full bg-white/90"></div>
+                                <div class="mt-6 space-y-3">
+                                    <div class="h-4 w-full rounded-full bg-white/90"></div>
+                                    <div class="h-4 w-5/6 rounded-full bg-white/90"></div>
+                                    <div class="h-4 w-2/3 rounded-full bg-white/90"></div>
                                 </div>
-
-                                <p class="mt-6 flex-1 text-base leading-8 text-slate-700">
-                                    "{review.comment}"
-                                </p>
                             </div>
                         </article>
                     ))}
                 </div>
             </div>
         </section>
-    )}
 
     {hasEvents && (
         <section id="akce" class="py-24 bg-white">
@@ -709,7 +438,7 @@ try {
                     {plakaty.map((akce) => (
                         akce.data.poster && (
                             <div class="group relative w-full max-w-md">
-                                <img src={akce.data.poster} alt={akce.data.title} class="w-full h-auto rounded-lg shadow-lg group-hover:shadow-2xl transition duration-300" />
+                                <img src={akce.data.poster} alt={akce.data.title} class="w-full h-auto rounded-lg shadow-lg group-hover:shadow-2xl transition duration-300" loading="lazy" decoding="async" />
                             </div>
                         )
                     ))}
@@ -747,7 +476,7 @@ try {
                  <h4 class="text-white text-lg font-bold mb-6 uppercase tracking-wider">Tady nás najdete</h4>
                  <div class="h-48 rounded-xl overflow-hidden relative group">
                     {settings.footerImage ? (
-                        <img src={settings.footerImage} class="w-full h-full object-cover group-hover:scale-105 transition duration-700" alt="Kde nás najdete" />
+                        <img src={settings.footerImage} class="w-full h-full object-cover group-hover:scale-105 transition duration-700" alt="Kde nás najdete" loading="lazy" decoding="async" />
                     ) : (
                         <div class="w-full h-full bg-slate-800 flex items-center justify-center text-slate-600 text-sm">Nahrajte fotku v adminu</div>
                     )}
@@ -763,38 +492,36 @@ try {
     <!-- Employee profile modal -->
     <div id="empModal" class="fixed inset-0 z-[100] hidden">
         <div id="empModalOverlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-        <div class="relative z-10 flex items-end sm:items-center justify-center min-h-full p-0 sm:p-4">
-            <div id="empModalCard" class="bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl max-w-md w-full max-h-[92vh] overflow-y-auto relative transform transition-all duration-300 translate-y-4 sm:scale-95 opacity-0">
-                <button id="empModalClose" class="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm flex items-center justify-center text-white transition">
+        <div id="empModalContainer" class="relative z-10 flex min-h-full items-center justify-center p-4 sm:p-6">
+            <div id="empModalCard" class="relative w-full max-w-4xl overflow-hidden rounded-[2rem] bg-white shadow-2xl transform transition-all duration-300 translate-y-4 sm:scale-95 opacity-0">
+                <button id="empModalClose" class="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/45 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/65">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
-                <div id="empModalBanner" class="w-full aspect-[4/3] overflow-hidden sm:rounded-t-2xl rounded-t-2xl bg-gray-100 relative"></div>
-                <div id="empModalBody" class="px-6 pb-6">
-                    <div id="empModalAvatarWrap" class="text-center -mt-12 relative z-10 mb-3">
-                        <div class="w-24 h-24 rounded-full border-4 border-white shadow-lg mx-auto overflow-hidden bg-gray-100">
-                            <img id="empModalAvatarImg" src="" alt="" class="w-full h-full object-cover" />
+                <div class="grid max-h-[min(88vh,820px)] overflow-hidden sm:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
+                    <div id="empModalBanner" class="relative min-h-[220px] max-h-[34vh] overflow-hidden bg-gray-100 sm:min-h-full sm:max-h-none"></div>
+                    <div id="empModalBody" class="flex min-h-0 flex-col justify-center px-5 pb-6 pt-5 sm:px-8 sm:py-8">
+                        <div id="empModalAvatarWrap" class="mb-4 text-center sm:text-left">
+                            <div class="mx-auto h-20 w-20 overflow-hidden rounded-full border-4 border-white bg-gray-100 shadow-lg sm:mx-0 sm:h-24 sm:w-24">
+                                <img id="empModalAvatarImg" src="" alt="" class="w-full h-full object-cover" />
+                            </div>
                         </div>
-                    </div>
-                    <div class="text-center pt-2">
-                        <h3 id="empModalName" class="text-2xl font-bold text-[#45225e]"></h3>
-                        <p id="empModalPozice" class="text-sm font-semibold text-[#ad6cdb] uppercase tracking-wider mt-1"></p>
-                    </div>
-                    <div id="empModalText" class="text-gray-600 text-sm leading-relaxed mt-4"></div>
-                    <div id="empModalVino" class="hidden border-t border-gray-100 pt-4 mt-5">
-                        <p class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Oblíbené víno</p>
-                        <a id="empModalVinoLink" href="#" target="_blank" rel="noopener" class="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition group">
-                            <img id="empModalVinoImg" src="" alt="" class="w-14 h-14 object-contain rounded-lg bg-white shadow-sm flex-shrink-0" />
-                            <span id="empModalVinoNazev" class="text-sm font-semibold text-gray-800 group-hover:text-[#45225e] transition"></span>
-                        </a>
+                        <div class="text-center sm:text-left">
+                            <h3 id="empModalName" class="text-2xl font-bold text-[#45225e]"></h3>
+                            <p id="empModalPozice" class="mt-1 text-sm font-semibold uppercase tracking-wider text-[#ad6cdb]"></p>
+                        </div>
+                        <div id="empModalText" class="mt-4 text-pretty text-sm leading-relaxed text-gray-600"></div>
+                        <div id="empModalVino" class="mt-5 hidden border-t border-gray-100 pt-4">
+                            <p class="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">Oblíbené víno</p>
+                            <a id="empModalVinoLink" href="#" target="_blank" rel="noopener" class="flex items-center gap-3 rounded-xl bg-gray-50 p-3 transition group hover:bg-gray-100">
+                                <img id="empModalVinoImg" src="" alt="" class="h-14 w-14 flex-shrink-0 rounded-lg bg-white object-contain shadow-sm" />
+                                <span id="empModalVinoNazev" class="text-sm font-semibold text-gray-800 transition group-hover:text-[#45225e]"></span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fslightbox/3.0.9/index.min.js"></script>
-
-    <script id="empProfileData" type="application/json" set:html={profileDataJson}></script>
 
     <script is:inline>
         const btn = document.getElementById('mobile-menu-btn');
@@ -811,30 +538,205 @@ try {
         });
 
         (function() {
-            var profiles = {};
-            try { profiles = JSON.parse(document.getElementById('empProfileData').textContent || '{}'); } catch(e) {}
-
             var modal = document.getElementById('empModal');
-            var overlay = document.getElementById('empModalOverlay');
             var card = document.getElementById('empModalCard');
             var closeBtn = document.getElementById('empModalClose');
             var banner = document.getElementById('empModalBanner');
             var avatarWrap = document.getElementById('empModalAvatarWrap');
             var avatarImg = document.getElementById('empModalAvatarImg');
-            var body = document.getElementById('empModalBody');
+            var teamSection = document.querySelector('[data-team-section]');
+            var teamList = document.querySelector('[data-team-list]');
+            var shiftSection = document.querySelector('[data-shift-section]');
+            var shiftList = document.querySelector('[data-shift-list]');
+            var reviewSection = document.querySelector('[data-reviews-section]');
+            var reviewTrack = document.querySelector('[data-review-list]');
+            var reviewControls = document.querySelector('[data-review-carousel-controls]');
+            var prevButton = document.querySelector('[data-review-carousel-prev]');
+            var nextButton = document.querySelector('[data-review-carousel-next]');
+            var profiles = {};
+            var lightboxRequested = false;
+
+            function toggleBanner() {
+                var bannerEl = document.querySelector('[data-banner]');
+                if (!bannerEl) return;
+
+                var now = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Prague' });
+                var start = bannerEl.getAttribute('data-banner-start');
+                var end = bannerEl.getAttribute('data-banner-end');
+                var visible = true;
+
+                if (start && now < start) visible = false;
+                if (end && now > end) visible = false;
+
+                bannerEl.classList.toggle('hidden', !visible);
+            }
+
+            function escapeHtml(value) {
+                return String(value || '').replace(/[&<>"']/g, function(char) {
+                    return ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#39;'
+                    })[char];
+                });
+            }
+
+            function ensureLightbox() {
+                if (lightboxRequested || !document.querySelector('[data-fslightbox]')) return;
+                lightboxRequested = true;
+
+                var script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/fslightbox/3.0.9/index.min.js';
+                script.defer = true;
+                document.body.appendChild(script);
+            }
+
+            function renderPerson(person, variant) {
+                var isShift = variant === 'shift';
+                var hasProfile = Boolean(person.email && profiles[person.email]);
+                var wrapperClass = (isShift ? 'flex flex-col items-center' : 'flex flex-col items-center group flex-shrink-0') + (hasProfile ? ' cursor-pointer emp-profile' : '');
+                var photoBoxClass = isShift ? 'w-14 h-14 md:w-16 md:h-16 mb-1.5' : 'w-20 h-20 md:w-24 md:h-24 mb-2';
+                var photoHtml = person.photo
+                    ? '<img src="' + escapeHtml(person.photo) + '" alt="' + escapeHtml(person.name) + '" class="relative w-full h-full rounded-full object-cover ' + (isShift ? 'border-2 border-green-300 shadow-sm' : 'border-[3px] border-white shadow-md group-hover:scale-105 transition duration-300') + '" loading="lazy" decoding="async" />'
+                    : '<div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center ' + (isShift ? 'text-lg' : 'text-2xl') + '">🍷</div>';
+                var positionHtml = isShift && person.pozice
+                    ? '<span class="text-[10px] font-bold uppercase tracking-wider text-green-700/60 mt-0.5">' + escapeHtml(person.pozice) + '</span>'
+                    : '';
+
+                return '<div class="' + wrapperClass + '" data-email="' + escapeHtml(person.email || '') + '">' +
+                    '<div class="' + photoBoxClass + ' relative">' + photoHtml + '</div>' +
+                    '<span class="' + (isShift ? 'text-xs' : 'text-sm') + ' font-semibold text-gray-800">' + escapeHtml(person.name) + '</span>' +
+                    positionHtml +
+                '</div>';
+            }
+
+            function renderReview(review, useCarousel) {
+                return '<article data-review-card class="relative h-full rounded-[2rem] border border-[#45225e]/10 bg-gradient-to-br from-[#fffaf5] via-white to-[#faf6ff] p-7 shadow-[0_24px_80px_rgba(69,34,94,0.10)]' + (useCarousel ? ' snap-start' : '') + '">' +
+                    '<div class="absolute right-0 top-0 h-28 w-28 rounded-full bg-[#ad6cdb]/10 blur-3xl"></div>' +
+                    '<div class="relative z-10 flex h-full flex-col">' +
+                        '<div class="flex items-center justify-between gap-4">' +
+                            '<div>' +
+                                '<div class="text-lg font-bold text-[#45225e]">' + escapeHtml(review.author) + '</div>' +
+                                '<span class="inline-flex items-center rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500 shadow-sm">Ověřené hodnocení</span>' +
+                            '</div>' +
+                            (review.publishedAt ? '<span class="text-sm font-medium text-slate-500">' + escapeHtml(review.publishedAt) + '</span>' : '') +
+                        '</div>' +
+                        '<div class="mt-6 flex items-center gap-3">' +
+                            '<span class="select-none text-2xl font-black leading-none tracking-[0.2em] text-transparent bg-clip-text" style="background-image: linear-gradient(90deg, #f59e0b ' + (Number(review.starValue || 0) * 20) + '%, #e5e7eb ' + (Number(review.starValue || 0) * 20) + '%);" aria-hidden="true">★★★★★</span>' +
+                            '<span class="text-sm font-bold text-amber-600">' + escapeHtml(review.starLabel) + ' / 5</span>' +
+                        '</div>' +
+                        '<p class="mt-6 flex-1 text-base leading-8 text-slate-700">"' + escapeHtml(review.comment) + '"</p>' +
+                    '</div>' +
+                '</article>';
+            }
+
+            function bindProfileTriggers() {
+                document.querySelectorAll('.emp-profile').forEach(function(el) {
+                    if (el.dataset.profileBound === 'true') return;
+                    el.dataset.profileBound = 'true';
+                    el.addEventListener('click', function() {
+                        var email = el.getAttribute('data-email');
+                        if (email) openModal(email);
+                    });
+                });
+            }
+
+            function getReviewScrollAmount() {
+                if (!reviewTrack) return 0;
+                var firstCard = reviewTrack.querySelector('[data-review-card]');
+                if (!firstCard) return reviewTrack.clientWidth;
+
+                var styles = window.getComputedStyle(reviewTrack);
+                var gap = parseFloat(styles.columnGap || styles.gap || '0') || 0;
+                var cardWidth = firstCard.getBoundingClientRect().width;
+                var visibleCards = window.innerWidth >= 1280 ? 3 : window.innerWidth >= 768 ? 2 : 1;
+
+                return (cardWidth + gap) * visibleCards;
+            }
+
+            function updateReviewButtons() {
+                if (!reviewTrack || !prevButton || !nextButton) return;
+                var maxScrollLeft = Math.max(0, reviewTrack.scrollWidth - reviewTrack.clientWidth - 4);
+                prevButton.disabled = reviewTrack.scrollLeft <= 4;
+                nextButton.disabled = reviewTrack.scrollLeft >= maxScrollLeft;
+            }
+
+            function setupReviewCarousel(useCarousel) {
+                if (!reviewTrack || !reviewControls) return;
+
+                reviewTrack.dataset.reviewCarousel = useCarousel ? 'true' : 'false';
+                reviewTrack.className = useCarousel
+                    ? 'review-scroll grid grid-flow-col auto-cols-[calc(100%-1rem)] gap-6 overflow-x-auto pb-4 snap-x snap-mandatory md:auto-cols-[calc((100%-1.5rem)/2)] xl:auto-cols-[calc((100%-3rem)/3)]'
+                    : 'grid gap-6 lg:grid-cols-3';
+
+                reviewControls.classList.toggle('hidden', !useCarousel);
+                reviewControls.classList.toggle('flex', useCarousel);
+                updateReviewButtons();
+            }
+
+            async function loadHomepageData() {
+                try {
+                    var response = await fetch('/api/homepage-dynamic');
+                    if (!response.ok) return;
+
+                    var data = await response.json();
+                    profiles = data.profiles || {};
+
+                    if (teamSection && teamList && Array.isArray(data.teamMembers) && data.teamMembers.length) {
+                        teamList.innerHTML = data.teamMembers.map(function(person) {
+                            return renderPerson(person, 'team');
+                        }).join('');
+                        teamSection.hidden = false;
+                    }
+
+                    if (shiftSection && shiftList && Array.isArray(data.onShiftNow) && data.onShiftNow.length) {
+                        shiftList.innerHTML = data.onShiftNow.map(function(person) {
+                            return renderPerson(person, 'shift');
+                        }).join('');
+                        shiftSection.hidden = false;
+                    }
+
+                    if (reviewSection && reviewTrack && Array.isArray(data.reviews) && data.reviews.length) {
+                        var useCarousel = data.reviews.length > 3;
+                        reviewTrack.innerHTML = data.reviews.map(function(review) {
+                            return renderReview(review, useCarousel);
+                        }).join('');
+                        setupReviewCarousel(useCarousel);
+                        reviewSection.hidden = false;
+                    }
+
+                    bindProfileTriggers();
+                    ensureLightbox();
+                } catch (error) {
+                    console.error('Homepage dynamic data failed', error);
+                }
+            }
+
+            toggleBanner();
+            ensureLightbox();
 
             function openModal(email) {
                 var p = profiles[email];
                 if (!p) return;
 
-                var hasBannerImg = !!p.img;
                 var heroSrc = p.img || p.foto || '';
 
                 banner.innerHTML = '';
+                banner.classList.remove('emp-modal-banner-video');
                 if (heroSrc) {
                     var isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(heroSrc);
                     if (isVideo) {
-                        banner.innerHTML = '<video src="' + heroSrc + '" autoplay muted loop playsinline class="w-full h-full object-cover" style="object-position:top"></video>';
+                        banner.classList.add('emp-modal-banner-video');
+                        var video = document.createElement('video');
+                        video.src = heroSrc;
+                        video.autoplay = true;
+                        video.muted = true;
+                        video.loop = true;
+                        video.playsInline = true;
+                        video.className = 'h-full w-full object-contain';
+                        banner.appendChild(video);
                     } else {
                         var img = document.createElement('img');
                         img.src = heroSrc;
@@ -847,15 +749,13 @@ try {
                     banner.style.display = 'none';
                 }
 
-                if (p.foto && hasBannerImg) {
+                if (p.foto) {
                     avatarImg.src = p.foto;
                     avatarImg.alt = p.name;
                     avatarWrap.style.display = '';
                 } else {
                     avatarWrap.style.display = 'none';
-                    body.style.paddingTop = heroSrc ? '1.5rem' : '2rem';
                 }
-                if (p.foto && hasBannerImg) body.style.paddingTop = '';
 
                 document.getElementById('empModalName').textContent = p.name;
                 var poziceEl = document.getElementById('empModalPozice');
@@ -901,18 +801,55 @@ try {
             }
 
             closeBtn.addEventListener('click', closeModal);
-            overlay.addEventListener('click', closeModal);
+            modal.addEventListener('click', function(e) {
+                if (!modal.classList.contains('hidden') && !card.contains(e.target)) closeModal();
+            });
 
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
             });
+            loadHomepageData();
+        })();
 
-            document.querySelectorAll('.emp-profile').forEach(function(el) {
-                el.addEventListener('click', function() {
-                    var email = el.getAttribute('data-email');
-                    if (email) openModal(email);
+        (function() {
+            var track = document.querySelector('[data-review-list]');
+            if (!track) return;
+
+            var prevButton = document.querySelector('[data-review-carousel-prev]');
+            var nextButton = document.querySelector('[data-review-carousel-next]');
+
+            function updateButtons() {
+                if (!prevButton || !nextButton) return;
+
+                var maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth - 4);
+                prevButton.disabled = track.scrollLeft <= 4;
+                nextButton.disabled = track.scrollLeft >= maxScrollLeft;
+            }
+
+            if (prevButton) {
+                prevButton.addEventListener('click', function() {
+                    track.scrollBy({ left: -((window.getReviewScrollAmount && window.getReviewScrollAmount()) || track.clientWidth), behavior: 'smooth' });
                 });
-            });
+            }
+
+            if (nextButton) {
+                nextButton.addEventListener('click', function() {
+                    track.scrollBy({ left: (window.getReviewScrollAmount && window.getReviewScrollAmount()) || track.clientWidth, behavior: 'smooth' });
+                });
+            }
+
+            track.addEventListener('scroll', updateButtons, { passive: true });
+            window.addEventListener('resize', updateButtons);
+            window.getReviewScrollAmount = function() {
+                var firstCard = track.querySelector('[data-review-card]');
+                if (!firstCard) return track.clientWidth;
+                var styles = window.getComputedStyle(track);
+                var gap = parseFloat(styles.columnGap || styles.gap || '0') || 0;
+                var cardWidth = firstCard.getBoundingClientRect().width;
+                var visibleCards = window.innerWidth >= 1280 ? 3 : window.innerWidth >= 768 ? 2 : 1;
+                return (cardWidth + gap) * visibleCards;
+            };
+            updateButtons();
         })();
     </script>
 
