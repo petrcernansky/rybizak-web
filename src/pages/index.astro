@@ -57,6 +57,17 @@ const menuList: MenuCard[] = rawMenuList
 
 const TEAM_SKELETON_COUNT = 8;
 const REVIEW_SKELETON_COUNT = 3;
+
+/** Souřadnice Rybízák – Frýdlantská 770 (OSM Nominatim) */
+const venueMap = {
+    lat: 49.6714113,
+    lon: 18.3470138,
+    zoom: 17,
+    address: 'Frýdlantská 770, Frýdek-Místek, Česko',
+} as const;
+const mapyFrameSrc = `https://mapy.cz/frame?x=${venueMap.lon}&y=${venueMap.lat}&z=${venueMap.zoom}`;
+const mapyOpenUrl = `https://mapy.cz/zakladni?x=${venueMap.lon}&y=${venueMap.lat}&z=${venueMap.zoom}`;
+const mapGeoNavUrl = `geo:${venueMap.lat},${venueMap.lon}?q=${encodeURIComponent(`Rybízák, ${venueMap.address}`)}`;
 ---
 
 <html lang="cs">
@@ -479,13 +490,30 @@ const REVIEW_SKELETON_COUNT = 3;
             </div>
             <div class="text-center md:text-left">
                  <h4 class="text-white text-lg font-bold mb-6 uppercase tracking-wider">Tady nás najdete</h4>
-                 <div class="h-48 rounded-xl overflow-hidden relative group">
-                    {settings.footerImage ? (
-                        <img src={settings.footerImage} class="w-full h-full object-cover group-hover:scale-105 transition duration-700" alt="Kde nás najdete" loading="lazy" decoding="async" />
-                    ) : (
-                        <div class="w-full h-full bg-slate-800 flex items-center justify-center text-slate-600 text-sm">Nahrajte fotku v adminu</div>
-                    )}
+                 <div class="relative h-48 overflow-hidden rounded-xl bg-slate-800 ring-1 ring-white/10 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.45)]">
+                    <iframe
+                        title="Mapa okolí Rybízák"
+                        class="pointer-events-none absolute inset-0 h-full w-full border-0"
+                        src={mapyFrameSrc}
+                        loading="lazy"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                    />
+                    <a
+                        id="footer-map-nav"
+                        href={mapyOpenUrl}
+                        data-geo-href={mapGeoNavUrl}
+                        class="absolute inset-0 z-10 flex items-end justify-end bg-gradient-to-t from-slate-950/50 via-slate-950/10 to-transparent p-3 transition hover:from-slate-950/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ad6cdb]"
+                        aria-label={`Otevřít navigaci k Rybízák – ${venueMap.address}`}
+                    >
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm backdrop-blur-sm">
+                            Navigace
+                            <span class="text-[#45225e]" aria-hidden="true">→</span>
+                        </span>
+                    </a>
                 </div>
+                <p class="mt-2 text-center text-[11px] leading-snug text-slate-500 md:text-left">
+                    Mapa <a href="https://mapy.cz" class="text-slate-400 underline decoration-slate-600 underline-offset-2 hover:text-[#ad6cdb]" target="_blank" rel="noopener noreferrer">Mapy.cz</a>
+                </p>
             </div>
         </div>
         <div class="border-t border-slate-800 pt-8 text-center text-xs text-gray-600">
@@ -874,6 +902,17 @@ const REVIEW_SKELETON_COUNT = 3;
                 return (cardWidth + gap) * visibleCards;
             };
             updateButtons();
+        })();
+    </script>
+
+    <script is:inline>
+        (function () {
+            var a = document.getElementById('footer-map-nav');
+            if (!a) return;
+            var geo = a.getAttribute('data-geo-href');
+            if (geo && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
+                a.setAttribute('href', geo);
+            }
         })();
     </script>
 

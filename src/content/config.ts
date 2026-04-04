@@ -20,7 +20,6 @@ const homepage = defineCollection({
     address: z.string().optional(),
     phone: z.string().optional(),
     email: z.string().optional(),
-    footerImage: z.string().optional(),
     companyInfo: z.string().optional(),
     openingHours: z.array(z.object({
       day: z.string(),

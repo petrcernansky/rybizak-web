@@ -69,11 +69,6 @@ export default config({
         address: fields.text({ label: 'Adresa', defaultValue: 'Farní 16, Frýdek-Místek' }),
         phone: fields.text({ label: 'Telefon' }),
         email: fields.text({ label: 'Email' }),
-        footerImage: fields.image({
-          label: 'Fotka do patičky',
-          directory: 'public/images/footer',
-          publicPath: '/images/footer/'
-        }),
         companyInfo: fields.text({ label: 'Firemní údaje (IČ atd.)', defaultValue: 'Rybízák s.r.o., IČ: 05887461' }),
         openingHours: fields.array(
           fields.object({
