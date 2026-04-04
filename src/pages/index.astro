@@ -110,6 +110,23 @@ const footerBuildYear = new Date().getFullYear();
         @keyframes shimmer {
             100% { transform: translateX(100%); }
         }
+        /* Patička: spolehlivá barva mimo Tailwind + mapa bez rozbití gridu */
+        #kontakt.site-footer {
+            background-color: #45225e;
+            color: rgba(255, 255, 255, 0.82);
+        }
+        #kontakt.site-footer .site-footer-inner {
+            min-width: 0;
+        }
+        #kontakt.site-footer .site-footer-map-shell {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            isolation: isolate;
+        }
+        #kontakt.site-footer .site-footer-map-shell iframe {
+            max-width: 100%;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 font-['Inter'] antialiased flex flex-col min-h-screen">
@@ -464,9 +481,9 @@ const footerBuildYear = new Date().getFullYear();
         </section>
     )}
 
-    <footer id="kontakt" class="border-t border-white/10 bg-[#45225e] pb-10 pt-20 text-white/75">
-        <div class="mx-auto mb-16 grid max-w-7xl gap-12 px-4 md:grid-cols-3">
-            <div class="text-center md:text-left">
+    <footer id="kontakt" class="site-footer border-t border-white/15 pb-10 pt-20 text-white/75">
+        <div class="site-footer-inner mx-auto mb-16 grid w-full max-w-7xl grid-cols-1 gap-10 px-4 md:grid-cols-3 md:items-start md:gap-12">
+            <div class="min-w-0 text-center md:text-left">
                 <h4 class="mb-6 text-lg font-bold uppercase tracking-wider text-white">Kontaktujte nás</h4>
                 <div class="space-y-4 text-sm md:text-base">
                     <p class="flex items-center justify-center gap-3 md:justify-start"><span class="text-[#e8c4ff]" aria-hidden="true">📍</span> <span>{settings.address}</span></p>
@@ -502,7 +519,7 @@ const footerBuildYear = new Date().getFullYear();
                     </div>
                 </div>
             </div>
-            <div class="text-center md:text-left">
+            <div class="min-w-0 text-center md:text-left">
                 <h4 class="mb-6 text-lg font-bold uppercase tracking-wider text-white">Otevírací doba</h4>
                 <ul class="inline-block w-full max-w-xs space-y-3 text-left">
                     {settings.openingHours && settings.openingHours.map((slot) => (
@@ -513,13 +530,15 @@ const footerBuildYear = new Date().getFullYear();
                     ))}
                 </ul>
             </div>
-            <div class="text-center md:text-left">
+            <div class="min-w-0 text-center md:text-left">
                  <h4 class="mb-6 text-lg font-bold uppercase tracking-wider text-white">Tady nás najdete</h4>
-                 <div class="relative h-48 overflow-hidden rounded-xl bg-black/25 ring-1 ring-white/15 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.35)]">
+                 <div class="site-footer-map-shell relative h-48 max-w-full overflow-hidden rounded-xl bg-black/30 ring-1 ring-white/20 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.35)]">
                     <iframe
                         title="Mapa okolí Rybízák"
-                        class="pointer-events-none absolute inset-0 h-full w-full border-0"
+                        class="pointer-events-none absolute inset-0 box-border h-full w-full max-w-full border-0"
                         src={mapyFrameSrc}
+                        width="800"
+                        height="384"
                         loading="lazy"
                         referrerpolicy="strict-origin-when-cross-origin"
                     />
@@ -541,11 +560,11 @@ const footerBuildYear = new Date().getFullYear();
                 </p>
             </div>
         </div>
-        <div class="border-t border-white/10 pt-8 text-center text-xs text-white/55">
-            <p>
-                &copy; <span id="footer-year">{footerBuildYear}</span> Rybízák Frýdek-Místek. Všechna práva vyhrazena.
+        <div class="site-footer-inner mx-auto max-w-7xl border-t border-white/10 px-4 pt-8 text-center text-xs text-white/55">
+            <p class="text-pretty">
+                &copy;&nbsp;<time id="footer-year" datetime={String(footerBuildYear)}>{footerBuildYear}</time>&nbsp;Rybízák Frýdek-Místek. Všechna práva vyhrazena.
             </p>
-            {settings.companyInfo && <p class="mt-2 text-white/65">{settings.companyInfo}</p>}
+            {settings.companyInfo && <p class="mt-2 text-pretty text-white/65">{settings.companyInfo}</p>}
         </div>
     </footer>
 
@@ -934,14 +953,19 @@ const footerBuildYear = new Date().getFullYear();
 
     <script is:inline>
         (function () {
-            var a = document.getElementById('footer-map-nav');
-            if (!a) return;
-            var geo = a.getAttribute('data-geo-href');
-            if (geo && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
-                a.setAttribute('href', geo);
-            }
             var y = document.getElementById('footer-year');
-            if (y) y.textContent = String(new Date().getFullYear());
+            if (y) {
+                var yr = String(new Date().getFullYear());
+                y.textContent = yr;
+                y.setAttribute('datetime', yr);
+            }
+            var a = document.getElementById('footer-map-nav');
+            if (a) {
+                var geo = a.getAttribute('data-geo-href');
+                if (geo && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')) {
+                    a.setAttribute('href', geo);
+                }
+            }
         })();
     </script>
 
