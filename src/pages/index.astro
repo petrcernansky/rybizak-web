@@ -62,14 +62,17 @@ const REVIEW_SKELETON_COUNT = 3;
 const venueMap = {
     lat: 49.6714113,
     lon: 18.3470138,
-    address: 'Frýdlantská 770, Frýdek-Místek, Česko',
+    /** Celá adresa pro Google Mapy a popisky */
+    placeLabel: 'Rybízák, Frýdlantská 770, 738 01 Frýdek-Místek 1, Česko',
 } as const;
-const mapPadLon = 0.008;
-const mapPadLat = 0.006;
+/** Užší bbox = vyšší zoom v OSM embedu (≈ úroveň jedné ulice) */
+const mapPadLon = 0.00085;
+const mapPadLat = 0.00055;
 const osmBbox = `${venueMap.lon - mapPadLon},${venueMap.lat - mapPadLat},${venueMap.lon + mapPadLon},${venueMap.lat + mapPadLat}`;
 const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(osmBbox)}&layer=mapnik`;
-const googleMapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Rybízák, ${venueMap.address}`)}`;
-const googleMapsDirectionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${venueMap.lat}%2C${venueMap.lon}&travelmode=driving`;
+const googleMapsQueryEncoded = encodeURIComponent(venueMap.placeLabel);
+const googleMapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${googleMapsQueryEncoded}`;
+const googleMapsDirectionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${googleMapsQueryEncoded}&travelmode=driving`;
 const footerBuildYear = new Date().getFullYear();
 ---
 
@@ -550,7 +553,7 @@ const footerBuildYear = new Date().getFullYear();
                         target="_blank"
                         rel="noopener noreferrer"
                         class="absolute inset-0 z-10 flex items-end justify-end bg-gradient-to-t from-[#1a1424]/85 via-[#45225e]/15 to-transparent p-3 transition hover:from-[#1a1424]/92 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e8c4ff]"
-                        aria-label={`Navigace do Rybízák – ${venueMap.address}`}
+                        aria-label={`Navigace do ${venueMap.placeLabel}`}
                     >
                         <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md">
                             Otevřít v Google Mapách
