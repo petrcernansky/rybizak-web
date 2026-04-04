@@ -373,16 +373,16 @@ const REVIEW_SKELETON_COUNT = 3;
         </section>
     )}
 
-    <section id="recenze" class="py-24 bg-white overflow-hidden" data-reviews-section hidden>
+    <section id="recenze" class="py-12 md:py-16 bg-white overflow-hidden" data-reviews-section hidden>
             <div class="max-w-7xl mx-auto px-4">
-                <div class="max-w-3xl mx-auto text-center mb-14">
+                <div class="max-w-3xl mx-auto text-center mb-6 md:mb-8">
                     <span class="inline-flex items-center rounded-full border border-[#45225e]/10 bg-[#faf6ff] px-4 py-2 text-xs font-bold uppercase tracking-[0.35em] text-[#7a49a3]">
                         Nejnovější recenze
                     </span>
-                    <h2 class="mt-6 text-3xl md:text-4xl font-bold text-[#45225e]">Co o nás říkají hosté</h2>
+                    <h2 class="mt-4 md:mt-5 text-3xl md:text-4xl font-bold text-[#45225e]">Co o nás říkají hosté</h2>
                 </div>
 
-                <div class="mb-8 hidden justify-end gap-3" data-review-carousel-controls>
+                <div class="mb-4 hidden justify-end gap-3" data-review-carousel-controls>
                     <button
                         type="button"
                         class="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#45225e]/10 bg-white text-[#45225e] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#faf6ff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
@@ -497,9 +497,9 @@ const REVIEW_SKELETON_COUNT = 3;
                 <button id="empModalClose" class="absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/45 text-white shadow-lg backdrop-blur-sm transition hover:bg-black/65">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
-                <div class="grid max-h-[min(88vh,820px)] overflow-hidden sm:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
-                    <div id="empModalBanner" class="relative min-h-[220px] max-h-[34vh] overflow-hidden bg-gray-100 sm:min-h-full sm:max-h-none"></div>
-                    <div id="empModalBody" class="flex min-h-0 flex-col justify-center px-5 pb-6 pt-5 sm:px-8 sm:py-8">
+                <div class="grid max-h-[min(88dvh,820px)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:max-h-[min(88vh,820px)] sm:grid-rows-1 sm:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)]">
+                    <div id="empModalBanner" class="relative h-[min(30vh,200px)] shrink-0 overflow-hidden bg-gray-100 sm:h-auto sm:min-h-[min(280px,45vh)] sm:max-h-none"></div>
+                    <div id="empModalBody" class="flex min-h-0 flex-col justify-start overflow-y-auto overscroll-contain px-5 pb-6 pt-5 sm:min-h-0 sm:justify-center sm:overflow-y-auto sm:px-8 sm:py-8">
                         <div id="empModalAvatarWrap" class="mb-4 text-center sm:text-left">
                             <div class="mx-auto h-20 w-20 overflow-hidden rounded-full border-4 border-white bg-gray-100 shadow-lg sm:mx-0 sm:h-24 sm:w-24">
                                 <img id="empModalAvatarImg" src="" alt="" class="w-full h-full object-cover" />
@@ -703,8 +703,16 @@ const REVIEW_SKELETON_COUNT = 3;
                         reviewTrack.innerHTML = data.reviews.map(function(review) {
                             return renderReview(review, useCarousel);
                         }).join('');
-                        setupReviewCarousel(useCarousel);
                         reviewSection.hidden = false;
+                        setupReviewCarousel(useCarousel);
+                        requestAnimationFrame(function() {
+                            requestAnimationFrame(function() {
+                                updateReviewButtons();
+                                if (typeof window.__syncReviewCarouselButtons === 'function') {
+                                    window.__syncReviewCarouselButtons();
+                                }
+                            });
+                        });
                     }
 
                     bindProfileTriggers();
@@ -840,6 +848,17 @@ const REVIEW_SKELETON_COUNT = 3;
 
             track.addEventListener('scroll', updateButtons, { passive: true });
             window.addEventListener('resize', updateButtons);
+            window.__syncReviewCarouselButtons = updateButtons;
+            if (typeof ResizeObserver !== 'undefined') {
+                try {
+                    new ResizeObserver(updateButtons).observe(track);
+                } catch (e) {}
+            }
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(function() {
+                    updateButtons();
+                });
+            }
             window.getReviewScrollAmount = function() {
                 var firstCard = track.querySelector('[data-review-card]');
                 if (!firstCard) return track.clientWidth;
