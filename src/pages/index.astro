@@ -373,32 +373,37 @@ const REVIEW_SKELETON_COUNT = 3;
         </section>
     )}
 
-    <section id="recenze" class="py-12 md:py-16 bg-white overflow-hidden" data-reviews-section hidden>
+    <section id="recenze" class="py-12 md:py-16 bg-white" data-reviews-section hidden>
             <div class="max-w-7xl mx-auto px-4">
-                <div class="max-w-3xl mx-auto text-center mb-6 md:mb-8">
-                    <span class="inline-flex items-center rounded-full border border-[#45225e]/10 bg-[#faf6ff] px-4 py-2 text-xs font-bold uppercase tracking-[0.35em] text-[#7a49a3]">
-                        Nejnovější recenze
-                    </span>
-                    <h2 class="mt-4 md:mt-5 text-3xl md:text-4xl font-bold text-[#45225e]">Co o nás říkají hosté</h2>
-                </div>
-
-                <div class="mb-4 hidden justify-end gap-3" data-review-carousel-controls>
-                    <button
-                        type="button"
-                        class="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#45225e]/10 bg-white text-[#45225e] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#faf6ff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-                        data-review-carousel-prev
-                        aria-label="Zobrazit předchozí recenze"
-                    >
-                        <span aria-hidden="true" class="text-xl leading-none">←</span>
-                    </button>
-                    <button
-                        type="button"
-                        class="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#45225e]/10 bg-white text-[#45225e] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#faf6ff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-                        data-review-carousel-next
-                        aria-label="Zobrazit další recenze"
-                    >
-                        <span aria-hidden="true" class="text-xl leading-none">→</span>
-                    </button>
+                <div class="mb-3 md:mb-4">
+                    <div class="text-center">
+                        <span class="inline-flex items-center rounded-full border border-[#45225e]/10 bg-[#faf6ff] px-4 py-2 text-xs font-bold uppercase tracking-[0.35em] text-[#7a49a3]">
+                            Nejnovější recenze
+                        </span>
+                    </div>
+                    <div class="mt-3 md:mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                        <h2 class="min-w-0 flex-1 text-left text-2xl font-bold leading-tight text-[#45225e] sm:text-3xl md:text-4xl md:leading-tight">
+                            Co o nás říkají hosté
+                        </h2>
+                        <div class="hidden shrink-0 items-center gap-2" data-review-carousel-controls>
+                            <button
+                                type="button"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#45225e]/10 bg-white text-[#45225e] shadow-[0_2px_12px_rgba(69,34,94,0.08)] transition hover:-translate-y-0.5 hover:bg-[#faf6ff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 md:h-11 md:w-11"
+                                data-review-carousel-prev
+                                aria-label="Zobrazit předchozí recenze"
+                            >
+                                <span aria-hidden="true" class="text-lg leading-none md:text-xl">←</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#45225e]/10 bg-white text-[#45225e] shadow-[0_2px_12px_rgba(69,34,94,0.08)] transition hover:-translate-y-0.5 hover:bg-[#faf6ff] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 md:h-11 md:w-11"
+                                data-review-carousel-next
+                                aria-label="Zobrazit další recenze"
+                            >
+                                <span aria-hidden="true" class="text-lg leading-none md:text-xl">→</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div
@@ -408,7 +413,7 @@ const REVIEW_SKELETON_COUNT = 3;
                     class="grid gap-6 lg:grid-cols-3"
                 >
                     {Array.from({ length: REVIEW_SKELETON_COUNT }).map(() => (
-                        <article class="relative h-full overflow-hidden rounded-[2rem] border border-[#45225e]/10 bg-gradient-to-br from-[#fffaf5] via-white to-[#faf6ff] p-7 shadow-[0_24px_80px_rgba(69,34,94,0.10)] is-loading">
+                        <article class="relative h-full overflow-hidden rounded-[2rem] border border-[#45225e]/10 bg-gradient-to-br from-[#fffaf5] via-white to-[#faf6ff] p-7 shadow-[0_8px_32px_-4px_rgba(69,34,94,0.09),0_2px_8px_-2px_rgba(69,34,94,0.06)] is-loading">
                             <div class="relative z-10 flex h-full flex-col">
                                 <div class="flex items-center justify-between gap-4">
                                     <div class="space-y-3">
@@ -613,7 +618,7 @@ const REVIEW_SKELETON_COUNT = 3;
             }
 
             function renderReview(review, useCarousel) {
-                return '<article data-review-card class="relative h-full rounded-[2rem] border border-[#45225e]/10 bg-gradient-to-br from-[#fffaf5] via-white to-[#faf6ff] p-7 shadow-[0_24px_80px_rgba(69,34,94,0.10)]' + (useCarousel ? ' snap-start' : '') + '">' +
+                return '<article data-review-card class="relative h-full rounded-[2rem] border border-[#45225e]/10 bg-gradient-to-br from-[#fffaf5] via-white to-[#faf6ff] p-7 shadow-[0_8px_32px_-4px_rgba(69,34,94,0.09),0_2px_8px_-2px_rgba(69,34,94,0.06)]' + (useCarousel ? ' snap-start' : '') + '">' +
                     '<div class="absolute right-0 top-0 h-28 w-28 rounded-full bg-[#ad6cdb]/10 blur-3xl"></div>' +
                     '<div class="relative z-10 flex h-full flex-col">' +
                         '<div class="flex items-center justify-between gap-4">' +
@@ -668,7 +673,7 @@ const REVIEW_SKELETON_COUNT = 3;
 
                 reviewTrack.dataset.reviewCarousel = useCarousel ? 'true' : 'false';
                 reviewTrack.className = useCarousel
-                    ? 'review-scroll grid grid-flow-col auto-cols-[calc(100%-1rem)] gap-6 overflow-x-auto pb-4 snap-x snap-mandatory md:auto-cols-[calc((100%-1.5rem)/2)] xl:auto-cols-[calc((100%-3rem)/3)]'
+                    ? 'review-scroll grid grid-flow-col auto-cols-[calc(100%-1rem)] gap-6 overflow-x-auto py-2 pb-4 snap-x snap-mandatory md:auto-cols-[calc((100%-1.5rem)/2)] xl:auto-cols-[calc((100%-3rem)/3)]'
                     : 'grid gap-6 lg:grid-cols-3';
 
                 reviewControls.classList.toggle('hidden', !useCarousel);
