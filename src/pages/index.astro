@@ -37,6 +37,8 @@ type FmWebPublic = {
         priority?: number;
         images?: string[];
         document?: string | null;
+        /** WebP náhled 1. strany z CRM uploadu (Bunny CDN) */
+        documentPreview?: string | null;
         documentPages?: number | null;
     }[];
     concerts: { id?: string; title: string; poster?: string }[];
@@ -125,6 +127,7 @@ type MenuCard = {
     priority: number;
     images: string[];
     document: string | null;
+    documentPreview: string | null;
     kind: 'images' | 'pdf';
     href: string;
     pageCount: number;
@@ -159,6 +162,11 @@ const menuList: MenuCard[] = rawMenuList
         const slug = String(menu.id || '').trim() || slugifyTitle(menu.title) || `menu-${idx}`;
         const dp = menu.documentPages != null ? Number(menu.documentPages) : NaN;
         const pdfPages = kind === 'pdf' && !Number.isNaN(dp) && dp > 0 ? Math.round(dp) : null;
+        const rawPrev =
+            kind === 'pdf' && typeof menu.documentPreview === 'string' && menu.documentPreview.trim()
+                ? menu.documentPreview.trim()
+                : '';
+        const documentPreview = rawPrev ? absolutizeUrl(rawPrev) : null;
 
         return {
             slug,
@@ -166,6 +174,7 @@ const menuList: MenuCard[] = rawMenuList
             priority: menu.priority ?? 99,
             images,
             document,
+            documentPreview,
             kind,
             href: document || images[0] || '#menu',
             pageCount: images.length,
@@ -277,6 +286,13 @@ const footerBuildYear = new Date().getFullYear();
         }
         #kontakt.site-footer .site-footer-map-shell iframe {
             max-width: 100%;
+        }
+        /* PDF menu — modal prohlížeč */
+        #fmPdfModal .fm-pdf-modal-panel {
+            box-shadow: 0 25px 80px -12px rgba(69, 34, 94, 0.35), 0 12px 32px -8px rgba(0, 0, 0, 0.2);
+        }
+        #fmPdfPagesInner canvas {
+            image-rendering: auto;
         }
     </style>
 </head>
@@ -515,33 +531,60 @@ const footerBuildYear = new Date().getFullYear();
 
                             {menu.kind === 'pdf' ? (
                                 <div class="flex min-h-0 flex-1 flex-col gap-3">
-                                    <div
-                                        class="relative flex min-h-[180px] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-[#45225e]/12 bg-gradient-to-br from-[#faf6ff] via-white to-slate-100 px-5 py-8 text-center sm:min-h-[200px]"
+                                    <button
+                                        type="button"
+                                        class="group/pdf relative block w-full overflow-hidden rounded-2xl border border-[#45225e]/12 bg-gradient-to-br from-[#faf6ff] via-white to-slate-100 text-left shadow-inner transition hover:border-[#45225e]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#45225e] focus-visible:ring-offset-2"
+                                        data-fm-pdf-open
+                                        data-pdf-url={menu.href}
+                                        data-pdf-title={menu.title}
+                                        aria-label={`Prohlédnout menu: ${menu.title}`}
                                     >
-                                        <span class="text-4xl text-[#45225e]/90 sm:text-5xl" aria-hidden="true">
-                                            📄
-                                        </span>
-                                        <p class="max-w-xs text-xs leading-relaxed text-slate-600 sm:text-sm">
-                                            Digitální menu (PDF). V prohlížeči ho nelze bezpečně vložit do rámečku — otevřete ho tlačítkem níže.
-                                        </p>
-                                    </div>
+                                        <div class="relative aspect-[4/5] w-full sm:aspect-[3/4]">
+                                            {menu.documentPreview ? (
+                                                <>
+                                                    <img
+                                                        src={menu.documentPreview}
+                                                        alt={`Náhled menu ${menu.title}`}
+                                                        class="h-full w-full object-cover object-top transition duration-500 group-hover/pdf:scale-[1.02]"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    />
+                                                    <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#2f1844]/75 via-[#45225e]/10 to-transparent" />
+                                                    <div class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition duration-300 group-hover/pdf:opacity-100">
+                                                        <span class="rounded-full bg-white/95 px-5 py-2.5 text-sm font-bold text-[#45225e] shadow-lg backdrop-blur-sm">
+                                                            Prohlédnout menu
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div class="flex h-full w-full flex-col items-center justify-center gap-3 px-5 py-8 text-center">
+                                                    <span class="text-4xl text-[#45225e]/90 sm:text-5xl" aria-hidden="true">
+                                                        📄
+                                                    </span>
+                                                    <p class="max-w-xs text-xs leading-relaxed text-slate-600 sm:text-sm">
+                                                        Po opětovném nahrání PDF v administraci se zde zobrazí náhled první strany. Menu si můžete prohlédnout v přehledném okně.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </button>
                                     <div class="mt-auto flex flex-col gap-2 sm:flex-row sm:gap-3">
-                                        <a
-                                            href={menu.href}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                        <button
+                                            type="button"
                                             class="inline-flex flex-1 items-center justify-center rounded-full bg-[#45225e] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5b2d7a]"
+                                            data-fm-pdf-open
+                                            data-pdf-url={menu.href}
+                                            data-pdf-title={menu.title}
                                         >
-                                            Otevřít menu
-                                        </a>
+                                            Prohlédnout menu
+                                        </button>
                                         <a
                                             href={menu.href}
-                                            target="_blank"
                                             rel="noopener noreferrer"
                                             download={`${slugifyTitle(menu.title) || 'menu'}.pdf`}
-                                            class="hidden items-center justify-center rounded-full border-2 border-[#45225e]/20 px-4 py-3 text-sm font-bold text-[#45225e] transition hover:border-[#45225e]/40 hover:bg-[#45225e]/5 sm:inline-flex sm:flex-1"
+                                            class="inline-flex flex-1 items-center justify-center rounded-full border-2 border-[#45225e]/20 px-4 py-3 text-sm font-bold text-[#45225e] transition hover:border-[#45225e]/40 hover:bg-[#45225e]/5"
                                         >
-                                            Stáhnout menu
+                                            Stáhnout PDF
                                         </a>
                                     </div>
                                 </div>
@@ -789,6 +832,89 @@ const footerBuildYear = new Date().getFullYear();
                                 <img id="empModalVinoImg" src="" alt="" class="h-14 w-14 flex-shrink-0 rounded-lg bg-white object-contain shadow-sm" />
                                 <span id="empModalVinoNazev" class="text-sm font-semibold text-gray-800 transition group-hover:text-[#45225e]"></span>
                             </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF menu viewer (PDF.js, bez nové záložky) -->
+    <div
+        id="fmPdfModal"
+        class="fixed inset-0 z-[110] hidden flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="fmPdfModalTitle"
+    >
+        <button
+            type="button"
+            class="absolute inset-0 z-0 bg-[#1e1030]/80 backdrop-blur-md"
+            data-fm-pdf-backdrop
+            aria-label="Zavřít prohlížeč menu"
+        ></button>
+        <div class="relative z-10 flex min-h-0 flex-1 items-stretch justify-center p-2 sm:p-5 md:items-center">
+            <div
+                class="fm-pdf-modal-panel flex h-[100dvh] w-full max-h-[100dvh] max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:h-[min(92dvh,900px)] sm:max-h-[min(92dvh,900px)] sm:rounded-[2rem]"
+            >
+                <div
+                    class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100/90 bg-white px-3 py-3 sm:gap-3 sm:px-6 sm:py-4"
+                >
+                    <div class="min-w-0 flex-1">
+                        <h3 id="fmPdfModalTitle" class="fm-font-heading truncate text-base text-[#45225e] sm:text-xl" data-fm-pdf-title>
+                            Menu
+                        </h3>
+                        <p class="truncate text-[11px] text-slate-500 sm:text-sm" data-fm-pdf-status>&nbsp;</p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1 sm:gap-2">
+                        <button
+                            type="button"
+                            class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg font-bold text-slate-700 transition hover:bg-slate-50 sm:h-10 sm:w-10"
+                            data-fm-pdf-zoom-out
+                            aria-label="Zmenšit"
+                        >
+                            −
+                        </button>
+                        <button
+                            type="button"
+                            class="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-lg font-bold text-slate-700 transition hover:bg-slate-50 sm:h-10 sm:w-10"
+                            data-fm-pdf-zoom-in
+                            aria-label="Zvětšit"
+                        >
+                            +
+                        </button>
+                        <a
+                            href="#"
+                            class="hidden items-center rounded-full border-2 border-[#45225e]/20 px-3 py-2 text-xs font-bold text-[#45225e] transition hover:border-[#45225e]/40 hover:bg-[#45225e]/5 sm:inline-flex sm:px-4 sm:text-sm"
+                            data-fm-pdf-download
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Stáhnout PDF
+                        </a>
+                        <button
+                            type="button"
+                            class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200 sm:h-10 sm:w-10"
+                            data-fm-pdf-close
+                            aria-label="Zavřít"
+                        >
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    class="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-slate-100/90 via-white to-slate-50/80"
+                    data-fm-pdf-scroll
+                >
+                    <div class="flex justify-center p-3 pb-8 sm:p-6 sm:pb-12">
+                        <div
+                            id="fmPdfPagesInner"
+                            class="flex w-full max-w-full flex-col items-center gap-4 sm:gap-6"
+                            style="transform-origin: top center"
+                            data-fm-pdf-pages-inner
+                        >
                         </div>
                     </div>
                 </div>
@@ -1153,6 +1279,168 @@ const footerBuildYear = new Date().getFullYear();
                 y.textContent = yr;
                 y.setAttribute('datetime', yr);
             }
+        })();
+    </script>
+
+    <script is:inline>
+        (function () {
+            var modal = document.getElementById('fmPdfModal');
+            if (!modal) return;
+            var inner = document.getElementById('fmPdfPagesInner');
+            var titleEl = modal.querySelector('[data-fm-pdf-title]');
+            var statusEl = modal.querySelector('[data-fm-pdf-status]');
+            var downloadA = modal.querySelector('[data-fm-pdf-download]');
+            var scrollEl = modal.querySelector('[data-fm-pdf-scroll]');
+            var closeBtn = modal.querySelector('[data-fm-pdf-close]');
+            var backdrop = modal.querySelector('[data-fm-pdf-backdrop]');
+            var zoomIn = modal.querySelector('[data-fm-pdf-zoom-in]');
+            var zoomOut = modal.querySelector('[data-fm-pdf-zoom-out]');
+            var pdfjsMod = null;
+            var currentPdf = null;
+            var currentRenderScale = 1.12;
+            var zoomVisual = 1;
+
+            function showModal() {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function hideModal() {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                document.body.style.overflow = '';
+                if (inner) inner.innerHTML = '';
+                if (currentPdf && currentPdf.destroy) {
+                    try {
+                        currentPdf.destroy();
+                    } catch (e) {}
+                    currentPdf = null;
+                }
+            }
+
+            function applyZoom() {
+                if (!inner) return;
+                inner.style.transform = 'scale(' + zoomVisual + ')';
+            }
+
+            function loadPdfJs() {
+                if (pdfjsMod) return Promise.resolve(pdfjsMod);
+                return import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/legacy/build/pdf.mjs').then(function (m) {
+                    m.GlobalWorkerOptions.workerSrc =
+                        'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/legacy/build/pdf.worker.min.mjs';
+                    pdfjsMod = m;
+                    return m;
+                });
+            }
+
+            function escapeAttr(s) {
+                return String(s || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/</g, '&lt;');
+            }
+
+            function openPdfViewer(url, title) {
+                if (!inner || !statusEl || !titleEl) return;
+                showModal();
+                titleEl.textContent = title || 'Menu';
+                if (downloadA) {
+                    downloadA.href = url;
+                }
+                inner.innerHTML = '<p class="py-16 text-center text-slate-500">Načítám menu…</p>';
+                statusEl.textContent = 'Načítám…';
+                zoomVisual = 1;
+                applyZoom();
+
+                loadPdfJs()
+                    .then(function () {
+                        return fetch(url, { mode: 'cors', credentials: 'omit', cache: 'default' });
+                    })
+                    .then(function (res) {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.arrayBuffer();
+                    })
+                    .then(function (buf) {
+                        return loadPdfJs().then(function (pdfjs) {
+                            var loadingTask = pdfjs.getDocument({
+                                data: new Uint8Array(buf),
+                                useSystemFonts: true,
+                                isEvalSupported: false,
+                            });
+                            return loadingTask.promise;
+                        });
+                    })
+                    .then(function (pdf) {
+                        currentPdf = pdf;
+                        inner.innerHTML = '';
+                        var total = pdf.numPages;
+                        var chain = Promise.resolve();
+                        for (var p = 1; p <= total; p++) {
+                            (function (pageNum) {
+                                chain = chain.then(function () {
+                                    statusEl.textContent = 'Vykresluji stránku ' + pageNum + ' / ' + total;
+                                    return pdf.getPage(pageNum).then(function (page) {
+                                        var vp = page.getViewport({ scale: currentRenderScale });
+                                        var canvas = document.createElement('canvas');
+                                        var ctx = canvas.getContext('2d');
+                                        canvas.width = vp.width;
+                                        canvas.height = vp.height;
+                                        canvas.className = 'max-h-none w-full max-w-full rounded-xl bg-white shadow-md sm:rounded-2xl sm:shadow-lg';
+                                        return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () {
+                                            inner.appendChild(canvas);
+                                        });
+                                    });
+                                });
+                            })(p);
+                        }
+                        return chain.then(function () {
+                            statusEl.textContent = total === 1 ? '1 strana' : total + ' stran';
+                            if (scrollEl) scrollEl.scrollTop = 0;
+                        });
+                    })
+                    .catch(function () {
+                        statusEl.textContent = 'Záložní zobrazení';
+                        inner.innerHTML =
+                            '<div class="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-6">' +
+                            '<p class="mb-4 text-center text-sm leading-relaxed text-slate-600">Nepodařilo se vykreslit PDF přímo (síť nebo pravidla prohlížeče). Zkuste náhled v rámečku nebo stažení.</p>' +
+                            '<iframe title="PDF menu" src="' +
+                            escapeAttr(url) +
+                            '#view=FitH" class="h-[min(72dvh,640px)] w-full rounded-xl border border-slate-200 bg-slate-100"></iframe>' +
+                            '<p class="mt-4 text-center"><a class="inline-flex rounded-full bg-[#45225e] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#5b2d7a]" href="' +
+                            escapeAttr(url) +
+                            '" target="_blank" rel="noopener noreferrer">Otevřít na celou obrazovku</a></p></div>';
+                        if (scrollEl) scrollEl.scrollTop = 0;
+                    });
+            }
+
+            document.addEventListener('click', function (ev) {
+                var t = ev.target;
+                if (!t || !t.closest) return;
+                var opener = t.closest('[data-fm-pdf-open]');
+                if (!opener) return;
+                ev.preventDefault();
+                var pdfUrl = opener.getAttribute('data-pdf-url');
+                if (!pdfUrl) return;
+                openPdfViewer(pdfUrl, opener.getAttribute('data-pdf-title') || '');
+            });
+
+            if (closeBtn) closeBtn.addEventListener('click', hideModal);
+            if (backdrop) backdrop.addEventListener('click', hideModal);
+            if (zoomIn)
+                zoomIn.addEventListener('click', function () {
+                    zoomVisual = Math.min(2.45, zoomVisual + 0.14);
+                    applyZoom();
+                });
+            if (zoomOut)
+                zoomOut.addEventListener('click', function () {
+                    zoomVisual = Math.max(0.62, zoomVisual - 0.14);
+                    applyZoom();
+                });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) hideModal();
+            });
         })();
     </script>
 
