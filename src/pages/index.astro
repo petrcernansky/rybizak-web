@@ -1341,6 +1341,32 @@ const footerBuildYear = new Date().getFullYear();
                     .replace(/</g, '&lt;');
             }
 
+            /** PDF z Bunny / rybizak.cz nemá CORS pro fetch — taháme přes Vercel (same-origin). */
+            function pdfDataFetchUrl(publicUrl) {
+                try {
+                    var u = new URL(publicUrl, window.location.origin);
+                    if (u.pathname.toLowerCase().indexOf('/vinarna-prezentace/') === -1) {
+                        return publicUrl;
+                    }
+                    if (u.origin === window.location.origin) {
+                        return publicUrl;
+                    }
+                    var h = u.hostname.toLowerCase();
+                    if (
+                        h === 'rybizak.b-cdn.net' ||
+                        h === 'www.rybizak.cz' ||
+                        h === 'rybizak.cz'
+                    ) {
+                        return (
+                            window.location.origin +
+                            '/api/fm-pdf-proxy?u=' +
+                            encodeURIComponent(u.href)
+                        );
+                    }
+                } catch (e) {}
+                return publicUrl;
+            }
+
             function openPdfViewer(url, title) {
                 if (!inner || !statusEl || !titleEl) return;
                 showModal();
@@ -1348,6 +1374,7 @@ const footerBuildYear = new Date().getFullYear();
                 if (downloadA) {
                     downloadA.href = url;
                 }
+                var fetchUrl = pdfDataFetchUrl(url);
                 inner.innerHTML = '<p class="py-16 text-center text-slate-500">Načítám menu…</p>';
                 statusEl.textContent = 'Načítám…';
                 zoomVisual = 1;
@@ -1355,7 +1382,7 @@ const footerBuildYear = new Date().getFullYear();
 
                 loadPdfJs()
                     .then(function () {
-                        return fetch(url, { mode: 'cors', credentials: 'omit', cache: 'default' });
+                        return fetch(fetchUrl, { credentials: 'same-origin', cache: 'default' });
                     })
                     .then(function (res) {
                         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1401,15 +1428,16 @@ const footerBuildYear = new Date().getFullYear();
                     })
                     .catch(function () {
                         statusEl.textContent = 'Záložní zobrazení';
+                        var iframeSrc = escapeAttr(fetchUrl) + '#view=FitH';
                         inner.innerHTML =
                             '<div class="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-6">' +
-                            '<p class="mb-4 text-center text-sm leading-relaxed text-slate-600">Nepodařilo se vykreslit PDF přímo (síť nebo pravidla prohlížeče). Zkuste náhled v rámečku nebo stažení.</p>' +
+                            '<p class="mb-4 text-center text-sm leading-relaxed text-slate-600">Menu se nepodařilo vykreslit jako obrázky. Zobrazujeme prohlížečové zobrazení PDF.</p>' +
                             '<iframe title="PDF menu" src="' +
-                            escapeAttr(url) +
-                            '#view=FitH" class="h-[min(72dvh,640px)] w-full rounded-xl border border-slate-200 bg-slate-100"></iframe>' +
+                            iframeSrc +
+                            '" class="h-[min(72dvh,640px)] w-full rounded-xl border border-slate-200 bg-slate-100"></iframe>' +
                             '<p class="mt-4 text-center"><a class="inline-flex rounded-full bg-[#45225e] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#5b2d7a]" href="' +
                             escapeAttr(url) +
-                            '" target="_blank" rel="noopener noreferrer">Otevřít na celou obrazovku</a></p></div>';
+                            '" target="_blank" rel="noopener noreferrer">Otevřít PDF v novém okně</a></p></div>';
                         if (scrollEl) scrollEl.scrollTop = 0;
                     });
             }
