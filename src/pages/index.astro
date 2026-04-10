@@ -568,24 +568,16 @@ const footerBuildYear = new Date().getFullYear();
                                             )}
                                         </div>
                                     </button>
-                                    <div class="mt-auto flex flex-col gap-2 sm:flex-row sm:gap-3">
+                                    <div class="mt-auto">
                                         <button
                                             type="button"
-                                            class="inline-flex flex-1 items-center justify-center rounded-full bg-[#45225e] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5b2d7a]"
+                                            class="inline-flex w-full items-center justify-center rounded-full bg-[#45225e] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5b2d7a]"
                                             data-fm-pdf-open
                                             data-pdf-url={menu.href}
                                             data-pdf-title={menu.title}
                                         >
                                             Prohlédnout menu
                                         </button>
-                                        <a
-                                            href={menu.href}
-                                            rel="noopener noreferrer"
-                                            download={`${slugifyTitle(menu.title) || 'menu'}.pdf`}
-                                            class="inline-flex flex-1 items-center justify-center rounded-full border-2 border-[#45225e]/20 px-4 py-3 text-sm font-bold text-[#45225e] transition hover:border-[#45225e]/40 hover:bg-[#45225e]/5"
-                                        >
-                                            Stáhnout PDF
-                                        </a>
                                     </div>
                                 </div>
                             ) : (
@@ -839,24 +831,18 @@ const footerBuildYear = new Date().getFullYear();
         </div>
     </div>
 
-    <!-- PDF menu viewer (PDF.js, bez nové záložky) -->
+    <!-- PDF menu viewer: klik mimo bílý panel = zavřít (celá plocha kromě panelu) -->
     <div
         id="fmPdfModal"
-        class="fixed inset-0 z-[110] hidden flex-col"
+        class="fixed inset-0 z-[110] hidden cursor-default items-center justify-center bg-[#1e1030]/80 p-2 backdrop-blur-md sm:p-5"
         role="dialog"
         aria-modal="true"
         aria-labelledby="fmPdfModalTitle"
     >
-        <button
-            type="button"
-            class="absolute inset-0 z-0 bg-[#1e1030]/80 backdrop-blur-md"
-            data-fm-pdf-backdrop
-            aria-label="Zavřít prohlížeč menu"
-        ></button>
-        <div class="relative z-10 flex min-h-0 flex-1 items-stretch justify-center p-2 sm:p-5 md:items-center">
-            <div
-                class="fm-pdf-modal-panel flex h-[100dvh] w-full max-h-[100dvh] max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:h-[min(92dvh,900px)] sm:max-h-[min(92dvh,900px)] sm:rounded-[2rem]"
-            >
+        <div
+            class="fm-pdf-modal-panel flex h-[100dvh] w-full max-h-[100dvh] max-w-5xl cursor-auto flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:h-[min(92dvh,900px)] sm:max-h-[min(92dvh,900px)] sm:rounded-[2rem]"
+            data-fm-pdf-panel
+        >
                 <div
                     class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100/90 bg-white px-3 py-3 sm:gap-3 sm:px-6 sm:py-4"
                 >
@@ -883,15 +869,6 @@ const footerBuildYear = new Date().getFullYear();
                         >
                             +
                         </button>
-                        <a
-                            href="#"
-                            class="hidden items-center rounded-full border-2 border-[#45225e]/20 px-3 py-2 text-xs font-bold text-[#45225e] transition hover:border-[#45225e]/40 hover:bg-[#45225e]/5 sm:inline-flex sm:px-4 sm:text-sm"
-                            data-fm-pdf-download
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            Stáhnout PDF
-                        </a>
                         <button
                             type="button"
                             class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200 sm:h-10 sm:w-10"
@@ -912,13 +889,11 @@ const footerBuildYear = new Date().getFullYear();
                         <div
                             id="fmPdfPagesInner"
                             class="flex w-full max-w-full flex-col items-center gap-4 sm:gap-6"
-                            style="transform-origin: top center"
                             data-fm-pdf-pages-inner
                         >
                         </div>
                     </div>
                 </div>
-            </div>
         </div>
     </div>
 
@@ -1286,19 +1261,20 @@ const footerBuildYear = new Date().getFullYear();
         (function () {
             var modal = document.getElementById('fmPdfModal');
             if (!modal) return;
+            var panel = modal.querySelector('[data-fm-pdf-panel]');
             var inner = document.getElementById('fmPdfPagesInner');
             var titleEl = modal.querySelector('[data-fm-pdf-title]');
             var statusEl = modal.querySelector('[data-fm-pdf-status]');
-            var downloadA = modal.querySelector('[data-fm-pdf-download]');
             var scrollEl = modal.querySelector('[data-fm-pdf-scroll]');
             var closeBtn = modal.querySelector('[data-fm-pdf-close]');
-            var backdrop = modal.querySelector('[data-fm-pdf-backdrop]');
             var zoomIn = modal.querySelector('[data-fm-pdf-zoom-in]');
             var zoomOut = modal.querySelector('[data-fm-pdf-zoom-out]');
             var pdfjsMod = null;
             var currentPdf = null;
-            var currentRenderScale = 1.12;
-            var zoomVisual = 1;
+            /** Násobič zoomu — překreslení canvasů (ne CSS scale), ostré i při přiblížení. */
+            var pdfZoomMul = 1;
+            var rerenderTimer = null;
+            var BASE_CSS_SCALE = 1.18;
 
             function showModal() {
                 modal.classList.remove('hidden');
@@ -1310,6 +1286,10 @@ const footerBuildYear = new Date().getFullYear();
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
                 document.body.style.overflow = '';
+                if (rerenderTimer) {
+                    clearTimeout(rerenderTimer);
+                    rerenderTimer = null;
+                }
                 if (inner) inner.innerHTML = '';
                 if (currentPdf && currentPdf.destroy) {
                     try {
@@ -1317,11 +1297,6 @@ const footerBuildYear = new Date().getFullYear();
                     } catch (e) {}
                     currentPdf = null;
                 }
-            }
-
-            function applyZoom() {
-                if (!inner) return;
-                inner.style.transform = 'scale(' + zoomVisual + ')';
             }
 
             function loadPdfJs() {
@@ -1341,7 +1316,6 @@ const footerBuildYear = new Date().getFullYear();
                     .replace(/</g, '&lt;');
             }
 
-            /** PDF z Bunny / rybizak.cz nemá CORS pro fetch — taháme přes Vercel (same-origin). */
             function pdfDataFetchUrl(publicUrl) {
                 try {
                     var u = new URL(publicUrl, window.location.origin);
@@ -1367,18 +1341,64 @@ const footerBuildYear = new Date().getFullYear();
                 return publicUrl;
             }
 
+            function effectiveRenderScale() {
+                var dpr = Math.min(typeof window.devicePixelRatio === 'number' ? window.devicePixelRatio : 1, 2.5);
+                return BASE_CSS_SCALE * pdfZoomMul * dpr;
+            }
+
+            function renderAllPagesIntoInner(pdf) {
+                if (!inner || !statusEl || !pdf) return Promise.resolve();
+                inner.innerHTML = '';
+                var total = pdf.numPages;
+                var scale = effectiveRenderScale();
+                var chain = Promise.resolve();
+                var maxCanvasSide = 8192;
+                for (var p = 1; p <= total; p++) {
+                    (function (pageNum) {
+                        chain = chain.then(function () {
+                            statusEl.textContent = 'Vykresluji stránku ' + pageNum + ' / ' + total;
+                            return pdf.getPage(pageNum).then(function (page) {
+                                var vp = page.getViewport({ scale: scale });
+                                if (vp.width > maxCanvasSide || vp.height > maxCanvasSide) {
+                                    var f = Math.min(maxCanvasSide / vp.width, maxCanvasSide / vp.height, 1);
+                                    vp = page.getViewport({ scale: scale * f });
+                                }
+                                var canvas = document.createElement('canvas');
+                                var ctx = canvas.getContext('2d');
+                                canvas.width = Math.floor(vp.width);
+                                canvas.height = Math.floor(vp.height);
+                                canvas.className = 'h-auto max-w-full rounded-xl bg-white shadow-md sm:rounded-2xl sm:shadow-lg';
+                                return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () {
+                                    inner.appendChild(canvas);
+                                });
+                            });
+                        });
+                    })(p);
+                }
+                return chain.then(function () {
+                    statusEl.textContent = total === 1 ? '1 strana' : total + ' stran';
+                    if (scrollEl) scrollEl.scrollTop = 0;
+                });
+            }
+
+            function scheduleRerenderPages() {
+                if (!currentPdf) return;
+                if (rerenderTimer) clearTimeout(rerenderTimer);
+                rerenderTimer = setTimeout(function () {
+                    rerenderTimer = null;
+                    statusEl.textContent = 'Upravuji přiblížení…';
+                    renderAllPagesIntoInner(currentPdf).catch(function () {});
+                }, 140);
+            }
+
             function openPdfViewer(url, title) {
                 if (!inner || !statusEl || !titleEl) return;
                 showModal();
                 titleEl.textContent = title || 'Menu';
-                if (downloadA) {
-                    downloadA.href = url;
-                }
                 var fetchUrl = pdfDataFetchUrl(url);
                 inner.innerHTML = '<p class="py-16 text-center text-slate-500">Načítám menu…</p>';
                 statusEl.textContent = 'Načítám…';
-                zoomVisual = 1;
-                applyZoom();
+                pdfZoomMul = 1;
 
                 loadPdfJs()
                     .then(function () {
@@ -1400,47 +1420,28 @@ const footerBuildYear = new Date().getFullYear();
                     })
                     .then(function (pdf) {
                         currentPdf = pdf;
-                        inner.innerHTML = '';
-                        var total = pdf.numPages;
-                        var chain = Promise.resolve();
-                        for (var p = 1; p <= total; p++) {
-                            (function (pageNum) {
-                                chain = chain.then(function () {
-                                    statusEl.textContent = 'Vykresluji stránku ' + pageNum + ' / ' + total;
-                                    return pdf.getPage(pageNum).then(function (page) {
-                                        var vp = page.getViewport({ scale: currentRenderScale });
-                                        var canvas = document.createElement('canvas');
-                                        var ctx = canvas.getContext('2d');
-                                        canvas.width = vp.width;
-                                        canvas.height = vp.height;
-                                        canvas.className = 'max-h-none w-full max-w-full rounded-xl bg-white shadow-md sm:rounded-2xl sm:shadow-lg';
-                                        return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () {
-                                            inner.appendChild(canvas);
-                                        });
-                                    });
-                                });
-                            })(p);
-                        }
-                        return chain.then(function () {
-                            statusEl.textContent = total === 1 ? '1 strana' : total + ' stran';
-                            if (scrollEl) scrollEl.scrollTop = 0;
-                        });
+                        return renderAllPagesIntoInner(pdf);
                     })
                     .catch(function () {
                         statusEl.textContent = 'Záložní zobrazení';
                         var iframeSrc = escapeAttr(fetchUrl) + '#view=FitH';
                         inner.innerHTML =
                             '<div class="mx-auto w-full max-w-2xl rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-6">' +
-                            '<p class="mb-4 text-center text-sm leading-relaxed text-slate-600">Menu se nepodařilo vykreslit jako obrázky. Zobrazujeme prohlížečové zobrazení PDF.</p>' +
+                            '<p class="mb-4 text-center text-sm leading-relaxed text-slate-600">Menu se nepodařilo vykreslit jako obrázky. Zobrazujeme vestavěné zobrazení PDF.</p>' +
                             '<iframe title="PDF menu" src="' +
                             iframeSrc +
                             '" class="h-[min(72dvh,640px)] w-full rounded-xl border border-slate-200 bg-slate-100"></iframe>' +
                             '<p class="mt-4 text-center"><a class="inline-flex rounded-full bg-[#45225e] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#5b2d7a]" href="' +
                             escapeAttr(url) +
-                            '" target="_blank" rel="noopener noreferrer">Otevřít PDF v novém okně</a></p></div>';
+                            '" target="_blank" rel="noopener noreferrer">Otevřít v novém okně</a></p></div>';
                         if (scrollEl) scrollEl.scrollTop = 0;
                     });
             }
+
+            modal.addEventListener('click', function (e) {
+                if (!panel || panel.contains(e.target)) return;
+                hideModal();
+            });
 
             document.addEventListener('click', function (ev) {
                 var t = ev.target;
@@ -1453,18 +1454,26 @@ const footerBuildYear = new Date().getFullYear();
                 openPdfViewer(pdfUrl, opener.getAttribute('data-pdf-title') || '');
             });
 
-            if (closeBtn) closeBtn.addEventListener('click', hideModal);
-            if (backdrop) backdrop.addEventListener('click', hideModal);
-            if (zoomIn)
-                zoomIn.addEventListener('click', function () {
-                    zoomVisual = Math.min(2.45, zoomVisual + 0.14);
-                    applyZoom();
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    hideModal();
                 });
-            if (zoomOut)
-                zoomOut.addEventListener('click', function () {
-                    zoomVisual = Math.max(0.62, zoomVisual - 0.14);
-                    applyZoom();
+            }
+            if (zoomIn) {
+                zoomIn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    pdfZoomMul = Math.min(2.85, pdfZoomMul + 0.16);
+                    scheduleRerenderPages();
                 });
+            }
+            if (zoomOut) {
+                zoomOut.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    pdfZoomMul = Math.max(0.55, pdfZoomMul - 0.16);
+                    scheduleRerenderPages();
+                });
+            }
 
             document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) hideModal();
