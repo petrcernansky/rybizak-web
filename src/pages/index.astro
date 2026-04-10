@@ -43,17 +43,36 @@ type FmWebPublic = {
 };
 
 const FM_ORIGIN = 'https://fm.rybizak.cz';
+const FM_PREZ_MARK = '/vinarna-prezentace/';
+const FM_PREZ_CDN_BASE = 'https://rybizak.b-cdn.net/vinarna-prezentace/';
+
+/** Soubory z prezentace patří na Bunny CDN; špatný host (www.rybizak.cz, …) dává 404 a iframe stejně neprojde. */
+function rewritePrezentaceUrlsToCdn(href: string): string {
+    const t = String(href || '').trim();
+    if (!t || !t.includes(FM_PREZ_MARK)) return t;
+    try {
+        const u = /^https?:\/\//i.test(t) ? new URL(t) : new URL(t.startsWith('/') ? t : `/${t}`, `${FM_ORIGIN}/`);
+        if (u.hostname.toLowerCase().includes('b-cdn.net')) return u.href;
+        const i = u.pathname.indexOf(FM_PREZ_MARK);
+        if (i === -1) return t;
+        const tail = u.pathname.slice(i + FM_PREZ_MARK.length).replace(/^\/+/, '');
+        if (!tail) return t;
+        return FM_PREZ_CDN_BASE.replace(/\/?$/, '/') + tail;
+    } catch {
+        return t;
+    }
+}
 
 function absolutizeUrl(u: string | undefined | null): string {
     const t = String(u || '').trim();
     if (!t) return '';
-    if (/^https?:\/\//i.test(t)) return t;
-    if (t.startsWith('//')) return `https:${t}`;
+    if (/^https?:\/\//i.test(t)) return rewritePrezentaceUrlsToCdn(t);
+    if (t.startsWith('//')) return rewritePrezentaceUrlsToCdn(`https:${t}`);
     try {
         const path = t.startsWith('/') ? t : `/${t}`;
-        return new URL(path, `${FM_ORIGIN}/`).href;
+        return rewritePrezentaceUrlsToCdn(new URL(path, `${FM_ORIGIN}/`).href);
     } catch {
-        return t;
+        return rewritePrezentaceUrlsToCdn(t);
     }
 }
 
@@ -355,12 +374,12 @@ const footerBuildYear = new Date().getFullYear();
 
     {benefity.length > 0 && (
         <section class="relative z-20 -mt-10 mx-3 border-b border-gray-100 bg-white py-10 shadow-lg sm:mx-4 md:mx-auto md:max-w-5xl md:rounded-xl">
-            <div class="mx-auto flex max-w-3xl flex-wrap justify-center gap-x-8 gap-y-8 px-4 sm:max-w-4xl sm:gap-x-10 md:gap-x-12">
+            <div class="mx-auto grid w-full max-w-5xl grid-cols-3 gap-x-3 gap-y-8 px-3 sm:gap-x-4 sm:px-4 md:max-w-6xl md:grid-cols-6 md:gap-x-6 lg:max-w-7xl">
                 {benefity.map((item) => {
                     const iconDef = getFmBenefitIcon(item.iconKey);
                     const legacySrc = isLegacyBenefitIconUrl(item.icon) ? absolutizeUrl(item.icon) : null;
                     return (
-                        <div class="flex w-[44%] max-w-[10.5rem] flex-col items-center text-center sm:w-36">
+                        <div class="flex min-w-0 flex-col items-center text-center">
                             <div class="mb-3 flex h-14 w-14 shrink-0 items-center justify-center text-[#45225e]">
                                 {iconDef ? (
                                     <svg
@@ -491,17 +510,16 @@ const footerBuildYear = new Date().getFullYear();
 
                             {menu.kind === 'pdf' ? (
                                 <div class="flex min-h-0 flex-1 flex-col gap-3">
-                                    <div class="relative w-full overflow-hidden rounded-2xl border border-[#45225e]/12 bg-slate-100">
-                                        <iframe
-                                            src={menu.href}
-                                            title={`Náhled: ${menu.title}`}
-                                            class="block h-[200px] w-full sm:h-[260px] md:h-[300px]"
-                                            loading="lazy"
-                                        />
+                                    <div
+                                        class="relative flex min-h-[180px] w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl border border-[#45225e]/12 bg-gradient-to-br from-[#faf6ff] via-white to-slate-100 px-5 py-8 text-center sm:min-h-[200px]"
+                                    >
+                                        <span class="text-4xl text-[#45225e]/90 sm:text-5xl" aria-hidden="true">
+                                            📄
+                                        </span>
+                                        <p class="max-w-xs text-xs leading-relaxed text-slate-600 sm:text-sm">
+                                            Digitální menu (PDF). V prohlížeči ho nelze bezpečně vložit do rámečku — otevřete ho tlačítkem níže.
+                                        </p>
                                     </div>
-                                    <p class="text-center text-[11px] leading-snug text-slate-500 sm:text-left sm:text-xs">
-                                        Náhled závisí na prohlížeči. Tlačítkem menu vždy otevřete celý dokument.
-                                    </p>
                                     <div class="mt-auto flex flex-col gap-2 sm:flex-row sm:gap-3">
                                         <a
                                             href={menu.href}
