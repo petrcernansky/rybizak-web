@@ -48,8 +48,13 @@ const FM_PREZ_CDN_BASE = 'https://rybizak.b-cdn.net/vinarna-prezentace/';
 
 /** Soubory z prezentace patří na Bunny CDN; špatný host (www.rybizak.cz, …) dává 404 a iframe stejně neprojde. */
 function rewritePrezentaceUrlsToCdn(href: string): string {
-    const t = String(href || '').trim();
-    if (!t || !t.includes(FM_PREZ_MARK)) return t;
+    let t = String(href || '').trim();
+    if (!t) return t;
+    if (t.includes(FM_PREZ_MARK)) {
+        t = t.replace(/^https?:\/\/www\.rybizak\.cz/i, 'https://rybizak.b-cdn.net');
+        t = t.replace(/^https?:\/\/rybizak\.cz/i, 'https://rybizak.b-cdn.net');
+    }
+    if (!t.includes(FM_PREZ_MARK)) return t;
     try {
         const u = /^https?:\/\//i.test(t) ? new URL(t) : new URL(t.startsWith('/') ? t : `/${t}`, `${FM_ORIGIN}/`);
         if (u.hostname.toLowerCase().includes('b-cdn.net')) return u.href;
