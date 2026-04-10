@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "updatedAt": null,
+  "homepage": {
+    "infoBannerText": "",
+    "infoBannerStart": "",
+    "infoBannerEnd": "",
+    "logo": "/images/brand/logo.svg",
+    "heroHeadline": "Rybízačí vinárna",
+    "heroSubheadline": "ve Frýdku-Místku",
+    "heroImage": "/images/hero/heroImage.webp",
+    "reservationLink": "https://fm.rybizak.cz/rezervace",
+    "aboutHeadline": "O naší vinárně",
+    "aboutText": "Přijďte k nám posedět, pobavit se a hlavně nasávat dobré vínko. Čekají na vás vaši ovocní oblíbenci, míchané drinky i něco k zakousnutí. Na mlýnku máme výběrovou kávu a ve vitrínce samé dobroty. Nabídka se pokaždé trochu mění, abychom vás brzy nezačali nudit.\n\nVe vinárně to žije! Pravidelně se tu družíme u živé hudby, chytrého kvízu a jiných kratochvílí. Jaké akce se u nás konají zjistíte u nás na Facebooku.\n\nOvocná vinárna funguje také jako kamenná prodejna. Pod námi sídlí obrovský sklad plný tekutých i jedlých dobrot. Takže skoro všechno, co najdete na e-shopu, máme i fyzicky u nás.",
+    "aboutImage": "/images/about/aboutImage.jpg",
+    "address": "Frýdlantská 770, Frýdek-Místek",
+    "phone": "799 505 581",
+    "email": "vinarna@rybizak.cz",
+    "companyInfo": "Rybízák s.r.o., IČ: 05887461, DIČ: CZ05887461, sídlo: Sládkova 372/8, Ostrava. Jsme plátci DPH.",
+    "openingHours": [
+      { "day": "Pondělí", "time": "08:00 - 20:00" },
+      { "day": "Úterý - Čtvrtek", "time": "08:00 - 22:00" },
+      { "day": "Pátek", "time": "08:00 - půlnoc" },
+      { "day": "Sobota", "time": "15:00 - půlnoc" },
+      { "day": "Neděle", "time": "zavřeno" }
+    ],
+    "facebookLink": "https://facebook.com/rybizak.fm",
+    "instagramLink": "https://instagram.com/rybizak_fm/"
+  },
+  "benefits": [
+    { "id": "b1", "title": "Posezení, ovocná vína, drinky a výběrová káva", "icon": "/images/icons/prijemne-posezeni-u-vina/icon.png" },
+    { "id": "b2", "title": "Platit můžete kartou, hotově, nebo přes Qerko", "icon": "/images/icons/moznosti-platby/icon.png" },
+    { "id": "b3", "title": "Osobní odběr z našeho e-shopu Rybízák.cz", "icon": "/images/icons/moznost-osobniho-odberu-z-naseho-e-shopu-rybizak-cz/icon.png" },
+    { "id": "b4", "title": "Zvířátka k nám mají vstup povolen", "icon": "/images/icons/zviratka-s-sebou/icon.png" },
+    { "id": "b5", "title": "Součástí je i prodejna našich ovocných vín", "icon": "/images/icons/prodejna/icon.png" }
+  ],
+  "menus": [
+    {
+      "id": "m1",
+      "title": "Stálé menu",
+      "priority": 1,
+      "images": [
+        "/images/menu/stale-menu/images/0.jpg",
+        "/images/menu/stale-menu/images/1.jpg",
+        "/images/menu/stale-menu/images/2.jpg",
+        "/images/menu/stale-menu/images/3.jpg"
+      ],
+      "document": null
+    },
+    {
+      "id": "m2",
+      "title": "Kouzelené menu",
+      "priority": 10,
+      "images": ["/images/menu/kouzelene-menu/images/0.webp"],
+      "document": null
+    },
+    {
+      "id": "m3",
+      "title": "Nabídka stáčených vín",
+      "priority": 100,
+      "images": ["/images/menu/nabidka-stacenych-vin/images/0.jpg"],
+      "document": null
+    }
+  ],
+  "concerts": []
+}

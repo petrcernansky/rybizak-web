@@ -1,22 +1,69 @@
 ---
-import { getEntry, getCollection } from 'astro:content';
+import fallback from '../data/fm-web-public-fallback.json';
 
-const homepageData = await getEntry('homepage', 'data');
-const settings = homepageData?.data || {};
+const FM_WEB_URL = import.meta.env.PUBLIC_FM_WEB_URL || 'https://web.rybizak.cloud/api/rybizak-fm/web/public';
 
-const toIsoString = (input) => {
+type FmHomepage = {
+    infoBannerText?: string;
+    infoBannerStart?: string;
+    infoBannerEnd?: string;
+    logo?: string;
+    heroHeadline?: string;
+    heroSubheadline?: string;
+    heroImage?: string;
+    reservationLink?: string;
+    aboutHeadline?: string;
+    aboutText?: string;
+    aboutImage?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    companyInfo?: string;
+    openingHours?: { day: string; time: string }[];
+    facebookLink?: string;
+    instagramLink?: string;
+};
+
+type FmWebPublic = {
+    version?: number;
+    updatedAt?: string | null;
+    homepage: FmHomepage;
+    benefits: { id?: string; title: string; icon?: string }[];
+    menus: { id?: string; title: string; priority?: number; images?: string[]; document?: string | null }[];
+    concerts: { id?: string; title: string; poster?: string }[];
+};
+
+async function loadFmWebPublic(): Promise<FmWebPublic | null> {
+    try {
+        const res = await fetch(FM_WEB_URL, { headers: { Accept: 'application/json' } });
+        if (!res.ok) return null;
+        const data = (await res.json()) as FmWebPublic;
+        if (!data || typeof data !== 'object' || !data.homepage) return null;
+        return data;
+    } catch {
+        return null;
+    }
+}
+
+const payload = (await loadFmWebPublic()) || (fallback as FmWebPublic);
+const settings: FmHomepage = payload.homepage || {};
+
+const toIsoString = (input: unknown) => {
     if (!input) return null;
-    return new Date(input).toISOString().split('T')[0];
+    return new Date(String(input)).toISOString().split('T')[0];
 };
 
 const showBanner = Boolean(settings.infoBannerText);
 const infoBannerStartISO = toIsoString(settings.infoBannerStart) || '';
 const infoBannerEndISO = toIsoString(settings.infoBannerEnd) || '';
 
-const benefity = await getCollection('benefits');
-const rawMenuList = await getCollection('menus');
-const plakaty = await getCollection('concerts');
-const hasEvents = plakaty.some((event) => Boolean(event.data.poster));
+const benefity = Array.isArray(payload.benefits) ? payload.benefits : [];
+const rawMenuList = Array.isArray(payload.menus) ? payload.menus : [];
+const plakaty = Array.isArray(payload.concerts) ? payload.concerts.filter((e) => Boolean(e.poster)) : [];
+const hasEvents = plakaty.length > 0;
+
+const reservationHref = String(settings.reservationLink || '').trim();
+const showReservation = Boolean(reservationHref);
 
 type MenuCard = {
     slug: string;
@@ -29,6 +76,14 @@ type MenuCard = {
     pageCount: number;
 };
 
+const slugifyTitle = (title: string) =>
+    String(title || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'menu';
+
 const getPageLabel = (count: number) => {
     if (count === 1) return '1 strana';
     if (count >= 2 && count <= 4) return `${count} strany`;
@@ -36,15 +91,16 @@ const getPageLabel = (count: number) => {
 };
 
 const menuList: MenuCard[] = rawMenuList
-    .map((menu) => {
-        const images = Array.isArray(menu.data.images) ? menu.data.images.filter(Boolean) : [];
-        const document = typeof menu.data.document === 'string' && menu.data.document ? menu.data.document : null;
+    .map((menu, idx) => {
+        const images = Array.isArray(menu.images) ? menu.images.filter(Boolean) : [];
+        const document = typeof menu.document === 'string' && menu.document ? menu.document : null;
         const kind = document ? 'pdf' : 'images';
+        const slug = String(menu.id || '').trim() || slugifyTitle(menu.title) || `menu-${idx}`;
 
         return {
-            slug: menu.slug,
-            title: menu.data.title,
-            priority: menu.data.priority || 99,
+            slug,
+            title: menu.title,
+            priority: menu.priority ?? 99,
             images,
             document,
             kind,
@@ -169,8 +225,8 @@ const footerBuildYear = new Date().getFullYear();
                     <a href="https://fm.rybizak.cz/zakaznicka-karticka" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Zákaznická kartička</a>
                     <a href="https://fm.rybizak.cz/chytry-kviz" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Chytrý kvíz</a>
                     <a href="#kontakt" class="text-sm font-semibold text-gray-600 hover:text-[#45225e] uppercase tracking-wider transition">Kontakt</a>
-                    {settings.reservationLink && (
-                        <a href="https://fm.rybizak.cz/rezervace" class="bg-[#45225e] text-white px-6 py-2 rounded-full font-bold text-sm hover:bg-[#351a4a] transition shadow-lg shadow-purple-900/20 transform hover:-translate-y-0.5">
+                    {showReservation && (
+                        <a href={reservationHref} class="bg-[#45225e] text-white px-6 py-2 rounded-full font-bold text-sm hover:bg-[#351a4a] transition shadow-lg shadow-purple-900/20 transform hover:-translate-y-0.5">
                             REZERVACE
                         </a>
                     )}
@@ -196,8 +252,8 @@ const footerBuildYear = new Date().getFullYear();
                 <a href="https://fm.rybizak.cz/zakaznicka-karticka" class="block text-lg font-bold text-gray-800 hover:text-[#45225e]">ZÁKAZNICKÁ KARTIČKA</a>
                 <a href="https://fm.rybizak.cz/chytry-kviz" class="block text-lg font-bold text-gray-800 hover:text-[#45225e]">CHYTRÝ KVÍZ</a>
                 <a href="#kontakt" class="block text-lg font-bold text-gray-800 hover:text-[#45225e]">KONTAKT</a>
-                {settings.reservationLink && (
-                    <a href="https://fm.rybizak.cz/rezervace" class="inline-block bg-[#45225e] text-white py-3 px-12 rounded-full font-bold shadow-md mt-2">
+                {showReservation && (
+                    <a href={reservationHref} class="inline-block bg-[#45225e] text-white py-3 px-12 rounded-full font-bold shadow-md mt-2">
                         REZERVACE
                     </a>
                 )}
@@ -221,8 +277,8 @@ const footerBuildYear = new Date().getFullYear();
                     {settings.heroSubheadline}
                 </p>
                 <div class="pt-6">
-                    {settings.reservationLink && (
-                        <a href={settings.reservationLink} class="inline-block bg-[#45225e] hover:bg-[#5a2d7a] text-white text-base px-8 py-3 rounded-full font-bold transition transform hover:scale-105 shadow-xl uppercase tracking-wide">
+                    {showReservation && (
+                        <a href={reservationHref} class="inline-block bg-[#45225e] hover:bg-[#5a2d7a] text-white text-base px-8 py-3 rounded-full font-bold transition transform hover:scale-105 shadow-xl uppercase tracking-wide">
                             Rezervovat stůl
                         </a>
                     )}
@@ -236,11 +292,11 @@ const footerBuildYear = new Date().getFullYear();
             <div class="grid grid-cols-3 md:grid-flow-col md:auto-cols-fr gap-4 px-2 md:px-8 text-center items-start justify-center">
                 {benefity.map((item) => (
                     <div class="flex flex-col items-center justify-start group h-full px-1">
-                        {item.data.icon && (
-                            <img src={item.data.icon} alt={item.data.title} class="h-8 w-8 md:h-12 md:w-12 mb-2 md:mb-3 object-contain opacity-80 group-hover:opacity-100 transition" decoding="async" />
+                        {item.icon && (
+                            <img src={item.icon} alt={item.title} class="h-8 w-8 md:h-12 md:w-12 mb-2 md:mb-3 object-contain opacity-80 group-hover:opacity-100 transition" decoding="async" />
                         )}
                         <h3 class="text-[11px] md:text-xs font-bold text-[#45225e] leading-tight normal-case break-words w-full">
-                            {item.data.title}
+                            {item.title}
                         </h3>
                     </div>
                 ))}
@@ -482,9 +538,9 @@ const footerBuildYear = new Date().getFullYear();
                 <h2 class="text-3xl font-bold text-[#45225e] mb-12">Co chystáme?</h2>
                 <div class="flex flex-wrap justify-center gap-8">
                     {plakaty.map((akce) => (
-                        akce.data.poster && (
+                        akce.poster && (
                             <div class="group relative w-full max-w-md">
-                                <img src={akce.data.poster} alt={akce.data.title} class="w-full h-auto rounded-lg shadow-lg group-hover:shadow-2xl transition duration-300" loading="lazy" decoding="async" />
+                                <img src={akce.poster} alt={akce.title} class="w-full h-auto rounded-lg shadow-lg group-hover:shadow-2xl transition duration-300" loading="lazy" decoding="async" />
                             </div>
                         )
                     ))}
