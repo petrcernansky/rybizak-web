@@ -28,11 +28,11 @@
     "instagramLink": "https://instagram.com/rybizak_fm/"
   },
   "benefits": [
-    { "id": "b1", "title": "Posezení, ovocná vína, drinky a výběrová káva", "icon": "/images/icons/prijemne-posezeni-u-vina/icon.png" },
-    { "id": "b2", "title": "Platit můžete kartou, hotově, nebo přes Qerko", "icon": "/images/icons/moznosti-platby/icon.png" },
-    { "id": "b3", "title": "Osobní odběr z našeho e-shopu Rybízák.cz", "icon": "/images/icons/moznost-osobniho-odberu-z-naseho-e-shopu-rybizak-cz/icon.png" },
-    { "id": "b4", "title": "Zvířátka k nám mají vstup povolen", "icon": "/images/icons/zviratka-s-sebou/icon.png" },
-    { "id": "b5", "title": "Součástí je i prodejna našich ovocných vín", "icon": "/images/icons/prodejna/icon.png" }
+    { "id": "b1", "title": "Posezení, ovocná vína, drinky a výběrová káva", "iconKey": "beaker" },
+    { "id": "b2", "title": "Platit můžete kartou, hotově, nebo přes Qerko", "iconKey": "credit-card" },
+    { "id": "b3", "title": "Osobní odběr z našeho e-shopu Rybízák.cz", "iconKey": "shopping-bag" },
+    { "id": "b4", "title": "Zvířátka k nám mají vstup povolen", "iconKey": "heart" },
+    { "id": "b5", "title": "Součástí je i prodejna našich ovocných vín", "iconKey": "building-storefront" }
   ],
   "menus": [
     {

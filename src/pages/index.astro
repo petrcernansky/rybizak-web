@@ -1,5 +1,6 @@
 ---
 import fallback from '../data/fm-web-public-fallback.json';
+import { getFmBenefitIcon, isLegacyBenefitIconUrl } from '../data/fm-benefit-icons';
 
 const FM_WEB_URL =
     import.meta.env.PUBLIC_FM_WEB_URL || 'https://web.rybizak.cloud/api/vinarna/fm-web/public';
@@ -29,10 +30,32 @@ type FmWebPublic = {
     version?: number;
     updatedAt?: string | null;
     homepage: FmHomepage;
-    benefits: { id?: string; title: string; icon?: string }[];
-    menus: { id?: string; title: string; priority?: number; images?: string[]; document?: string | null }[];
+    benefits: { id?: string; title: string; iconKey?: string; icon?: string }[];
+    menus: {
+        id?: string;
+        title: string;
+        priority?: number;
+        images?: string[];
+        document?: string | null;
+        documentPages?: number | null;
+    }[];
     concerts: { id?: string; title: string; poster?: string }[];
 };
+
+const FM_ORIGIN = 'https://fm.rybizak.cz';
+
+function absolutizeUrl(u: string | undefined | null): string {
+    const t = String(u || '').trim();
+    if (!t) return '';
+    if (/^https?:\/\//i.test(t)) return t;
+    if (t.startsWith('//')) return `https:${t}`;
+    try {
+        const path = t.startsWith('/') ? t : `/${t}`;
+        return new URL(path, `${FM_ORIGIN}/`).href;
+    } catch {
+        return t;
+    }
+}
 
 async function loadFmWebPublic(): Promise<FmWebPublic | null> {
     try {
@@ -81,6 +104,7 @@ type MenuCard = {
     kind: 'images' | 'pdf';
     href: string;
     pageCount: number;
+    pdfPages: number | null;
 };
 
 const slugifyTitle = (title: string) =>
@@ -97,12 +121,20 @@ const getPageLabel = (count: number) => {
     return `${count} stran`;
 };
 
+const getPdfPageLabel = (n: number | null | undefined) => {
+    if (n == null || n < 1) return 'PDF menu';
+    return getPageLabel(n);
+};
+
 const menuList: MenuCard[] = rawMenuList
     .map((menu, idx) => {
-        const images = Array.isArray(menu.images) ? menu.images.filter(Boolean) : [];
-        const document = typeof menu.document === 'string' && menu.document ? menu.document : null;
+        const imagesRaw = Array.isArray(menu.images) ? menu.images.filter(Boolean) : [];
+        const images = imagesRaw.map((u) => absolutizeUrl(String(u)));
+        const document = typeof menu.document === 'string' && menu.document ? absolutizeUrl(menu.document) : null;
         const kind = document ? 'pdf' : 'images';
         const slug = String(menu.id || '').trim() || slugifyTitle(menu.title) || `menu-${idx}`;
+        const dp = menu.documentPages != null ? Number(menu.documentPages) : NaN;
+        const pdfPages = kind === 'pdf' && !Number.isNaN(dp) && dp > 0 ? Math.round(dp) : null;
 
         return {
             slug,
@@ -113,10 +145,13 @@ const menuList: MenuCard[] = rawMenuList
             kind,
             href: document || images[0] || '#menu',
             pageCount: images.length,
+            pdfPages,
         };
     })
     .filter((menu) => menu.pageCount > 0 || Boolean(menu.document))
     .sort((a, b) => a.priority - b.priority);
+
+const defaultBenefitIcon = getFmBenefitIcon('sparkles');
 
 const TEAM_SKELETON_COUNT = 8;
 const REVIEW_SKELETON_COUNT = 3;
@@ -216,7 +251,7 @@ const footerBuildYear = new Date().getFullYear();
                 <div class="flex-shrink-0 flex items-center">
                     <a href="#" class="block hover:opacity-80 transition">
                         {settings.logo ? (
-                            <img class="h-10 w-auto md:h-12" src={settings.logo} alt="Rybízák Logo" width="140" height="48" decoding="async" />
+                            <img class="h-10 w-auto md:h-12" src={absolutizeUrl(settings.logo)} alt="Rybízák Logo" width="140" height="48" decoding="async" />
                         ) : (
                             <span class="text-2xl font-bold text-[#45225e]">RYBÍZÁK</span>
                         )}
@@ -271,7 +306,7 @@ const footerBuildYear = new Date().getFullYear();
     <header class="relative h-[85vh] flex items-center justify-center">
         {settings.heroImage && (
             <div class="absolute inset-0 z-0">
-                <img src={settings.heroImage} alt="Úvod" class="w-full h-full object-cover" fetchpriority="high" decoding="async" />
+                <img src={absolutizeUrl(settings.heroImage)} alt="Úvod" class="w-full h-full object-cover" fetchpriority="high" decoding="async" />
                 <div class="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/40 to-transparent"></div>
             </div>
         )}
@@ -295,18 +330,54 @@ const footerBuildYear = new Date().getFullYear();
     </header>
 
     {benefity.length > 0 && (
-        <section class="py-8 bg-white border-b border-gray-100 relative z-20 -mt-10 mx-4 md:mx-auto max-w-6xl rounded-xl shadow-lg">
-            <div class="grid grid-cols-3 md:grid-flow-col md:auto-cols-fr gap-4 px-2 md:px-8 text-center items-start justify-center">
-                {benefity.map((item) => (
-                    <div class="flex flex-col items-center justify-start group h-full px-1">
-                        {item.icon && (
-                            <img src={item.icon} alt={item.title} class="h-8 w-8 md:h-12 md:w-12 mb-2 md:mb-3 object-contain opacity-80 group-hover:opacity-100 transition" decoding="async" />
-                        )}
-                        <h3 class="text-[11px] md:text-xs font-bold text-[#45225e] leading-tight normal-case break-words w-full">
-                            {item.title}
-                        </h3>
-                    </div>
-                ))}
+        <section class="relative z-20 -mt-10 mx-3 border-b border-gray-100 bg-white py-10 shadow-lg sm:mx-4 md:mx-auto md:max-w-5xl md:rounded-xl">
+            <div class="mx-auto flex max-w-3xl flex-wrap justify-center gap-x-8 gap-y-8 px-4 sm:max-w-4xl sm:gap-x-10 md:gap-x-12">
+                {benefity.map((item) => {
+                    const iconDef = getFmBenefitIcon(item.iconKey);
+                    const legacySrc = isLegacyBenefitIconUrl(item.icon) ? absolutizeUrl(item.icon) : null;
+                    return (
+                        <div class="flex w-[44%] max-w-[10.5rem] flex-col items-center text-center sm:w-36">
+                            <div class="mb-3 flex h-14 w-14 shrink-0 items-center justify-center text-[#45225e]">
+                                {iconDef ? (
+                                    <svg
+                                        class="h-11 w-11"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="1.5"
+                                        aria-hidden="true"
+                                    >
+                                        {iconDef.paths.map((d) => (
+                                            <path stroke-linecap="round" stroke-linejoin="round" d={d} />
+                                        ))}
+                                    </svg>
+                                ) : legacySrc ? (
+                                    <img
+                                        src={legacySrc}
+                                        alt=""
+                                        class="h-11 w-11 object-contain opacity-90"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                ) : defaultBenefitIcon ? (
+                                    <svg
+                                        class="h-11 w-11"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        stroke-width="1.5"
+                                        aria-hidden="true"
+                                    >
+                                        {defaultBenefitIcon.paths.map((d) => (
+                                            <path stroke-linecap="round" stroke-linejoin="round" d={d} />
+                                        ))}
+                                    </svg>
+                                ) : null}
+                            </div>
+                            <h3 class="text-[11px] font-bold leading-tight text-[#45225e] sm:text-xs">{item.title}</h3>
+                        </div>
+                    );
+                })}
             </div>
         </section>
     )}
@@ -318,7 +389,7 @@ const footerBuildYear = new Date().getFullYear();
                     {settings.aboutImage && (
                         <>
                             <div class="absolute inset-0 bg-[#45225e] rounded-3xl transform rotate-3 translate-x-2 translate-y-2 opacity-20"></div>
-                            <img src={settings.aboutImage} alt="O nás" class="relative rounded-3xl shadow-xl w-full object-cover aspect-[4/3]" loading="lazy" decoding="async" />
+                            <img src={absolutizeUrl(settings.aboutImage)} alt="O nás" class="relative rounded-3xl shadow-xl w-full object-cover aspect-[4/3]" loading="lazy" decoding="async" />
                         </>
                     )}
                 </div>
@@ -364,78 +435,66 @@ const footerBuildYear = new Date().getFullYear();
         </section>
 
    {menuList.length > 0 && (
-        <section id="menu" class="py-24 bg-gray-50">
-            <div class="max-w-7xl mx-auto px-4 text-center">
-                <h2 class="text-3xl md:text-4xl font-bold text-[#45225e] mb-16">Naše nabídka</h2>
+        <section id="menu" class="bg-gray-50 py-16 sm:py-20 md:py-24">
+            <div class="mx-auto max-w-7xl px-3 text-center sm:px-4">
+                <h2 class="mb-10 text-3xl font-bold text-[#45225e] md:mb-14 md:text-4xl">Naše nabídka</h2>
 
                 <div
                     class:list={[
-                        'grid gap-6 lg:gap-8 items-stretch mx-auto',
-                        menuList.length === 1 && 'grid-cols-1 max-w-lg',
-                        menuList.length === 2 && 'grid-cols-1 sm:grid-cols-2 max-w-4xl',
-                        menuList.length >= 3 && 'sm:grid-cols-2 xl:grid-cols-3 max-w-7xl',
+                        'mx-auto grid items-stretch gap-5 sm:gap-6 lg:gap-8',
+                        menuList.length === 1 && 'max-w-md grid-cols-1',
+                        menuList.length === 2 && 'max-w-4xl grid-cols-1 sm:grid-cols-2',
+                        menuList.length >= 3 && 'max-w-7xl grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
                     ]}
                 >
                     {menuList.map((menu) => (
-                        <article class="group flex h-full flex-col rounded-[2rem] border border-white/70 bg-white p-4 sm:p-5 text-left shadow-[0_24px_80px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_90px_rgba(69,34,94,0.16)]">
-                            <div class="mb-6 flex items-start justify-between gap-4">
-                                <div>
+                        <article class="group flex h-full flex-col rounded-3xl border border-gray-100 bg-white p-4 text-left shadow-lg transition duration-300 hover:-translate-y-0.5 hover:shadow-xl sm:rounded-[2rem] sm:p-5">
+                            <div class="mb-4 flex items-start justify-between gap-3 sm:mb-5">
+                                <div class="min-w-0 flex-1">
                                     {menu.kind === 'pdf' && (
-                                        <p class="text-xs font-semibold uppercase tracking-[0.35em] text-[#ad6cdb] mb-2">
-                                            PDF nabídka
+                                        <p class="mb-1 text-[10px] font-bold uppercase tracking-[0.28em] text-[#ad6cdb] sm:text-xs sm:tracking-[0.35em]">
+                                            Digitální menu
                                         </p>
                                     )}
-                                    <h3 class="text-xl xl:text-2xl font-bold text-gray-900 leading-tight">
+                                    <h3 class="text-lg font-bold leading-tight text-gray-900 sm:text-xl xl:text-2xl">
                                         {menu.title}
                                     </h3>
                                 </div>
-                                <span class="shrink-0 rounded-full bg-[#45225e]/8 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.22em] text-[#45225e]">
-                                    {menu.kind === 'pdf' ? 'PDF' : getPageLabel(menu.pageCount)}
+                                <span class="shrink-0 rounded-full bg-[#45225e]/10 px-2.5 py-1.5 text-[10px] font-bold uppercase leading-none tracking-wide text-[#45225e] sm:px-3 sm:py-2 sm:text-[11px] sm:tracking-[0.2em]">
+                                    {menu.kind === 'pdf' ? getPdfPageLabel(menu.pdfPages) : getPageLabel(menu.pageCount)}
                                 </span>
                             </div>
 
                             {menu.kind === 'pdf' ? (
-                                <div class="flex h-full flex-col">
-                                    <a href={menu.href} target="_blank" rel="noreferrer" class="block relative w-full aspect-[4/5] overflow-hidden rounded-[1.75rem] border border-[#45225e]/10 bg-gradient-to-br from-[#faf6ff] via-white to-[#efe5ff] p-6 sm:p-8">
-                                        <div class="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#45225e]/10 to-transparent"></div>
-                                        <div class="relative z-10 flex h-full flex-col justify-between">
-                                            <div class="flex items-center justify-between gap-4">
-                                                <div class="rounded-2xl bg-[#45225e] px-4 py-3 text-left text-white shadow-lg">
-                                                    <div class="text-[11px] uppercase tracking-[0.35em] text-white/70">Dokument</div>
-                                                    <div class="text-xl font-bold">PDF</div>
-                                                </div>
-                                                <div class="rounded-full border border-[#45225e]/15 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-[#45225e]">
-                                                    Otevřít
-                                                </div>
-                                            </div>
-
-                                            <div class="mx-auto w-full max-w-[16rem] rounded-[1.5rem] border border-white/80 bg-white/95 p-5 shadow-[0_20px_60px_rgba(69,34,94,0.12)]">
-                                                <div class="mb-4 flex items-center justify-between">
-                                                    <div class="h-3 w-16 rounded-full bg-[#45225e]/15"></div>
-                                                    <div class="h-3 w-10 rounded-full bg-[#ad6cdb]/20"></div>
-                                                </div>
-                                                <div class="space-y-3">
-                                                    <div class="h-3 rounded-full bg-slate-200"></div>
-                                                    <div class="h-3 w-11/12 rounded-full bg-slate-200"></div>
-                                                    <div class="h-3 w-4/5 rounded-full bg-slate-200"></div>
-                                                    <div class="h-20 rounded-[1.25rem] bg-gradient-to-br from-[#45225e]/10 via-[#ad6cdb]/15 to-[#45225e]/5"></div>
-                                                    <div class="h-3 w-10/12 rounded-full bg-slate-200"></div>
-                                                    <div class="h-3 w-2/3 rounded-full bg-slate-200"></div>
-                                                </div>
-                                            </div>
-
-                                            <div class="text-sm text-slate-600 leading-relaxed">
-                                                Vícestránkové PDF otevřete jedním kliknutím v novém okně. Na mobilu funguje stejně spolehlivě jako na desktopu.
-                                            </div>
-                                        </div>
-                                    </a>
-
-                                    <div class="mt-5 flex flex-col sm:flex-row gap-3">
-                                        <a href={menu.href} target="_blank" rel="noreferrer" class="inline-flex flex-1 items-center justify-center rounded-full bg-[#45225e] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#5b2d7a]">
-                                            Otevřít PDF
+                                <div class="flex min-h-0 flex-1 flex-col gap-3">
+                                    <div class="relative w-full overflow-hidden rounded-2xl border border-[#45225e]/12 bg-slate-100">
+                                        <iframe
+                                            src={menu.href}
+                                            title={`Náhled: ${menu.title}`}
+                                            class="block h-[200px] w-full sm:h-[260px] md:h-[300px]"
+                                            loading="lazy"
+                                        />
+                                    </div>
+                                    <p class="text-center text-[11px] leading-snug text-slate-500 sm:text-left sm:text-xs">
+                                        Náhled závisí na prohlížeči. Tlačítkem menu vždy otevřete celý dokument.
+                                    </p>
+                                    <div class="mt-auto flex flex-col gap-2 sm:flex-row sm:gap-3">
+                                        <a
+                                            href={menu.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="inline-flex flex-1 items-center justify-center rounded-full bg-[#45225e] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#5b2d7a]"
+                                        >
+                                            Otevřít menu
                                         </a>
-                                        <a href={menu.href} download class="inline-flex flex-1 items-center justify-center rounded-full border border-[#45225e]/15 px-5 py-3 text-sm font-bold text-[#45225e] transition hover:border-[#45225e]/30 hover:bg-[#45225e]/5">
-                                            Stáhnout
+                                        <a
+                                            href={menu.href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            download={`${slugifyTitle(menu.title) || 'menu'}.pdf`}
+                                            class="hidden items-center justify-center rounded-full border-2 border-[#45225e]/20 px-4 py-3 text-sm font-bold text-[#45225e] transition hover:border-[#45225e]/40 hover:bg-[#45225e]/5 sm:inline-flex sm:flex-1"
+                                        >
+                                            Stáhnout menu
                                         </a>
                                     </div>
                                 </div>
