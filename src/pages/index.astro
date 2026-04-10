@@ -49,6 +49,12 @@ async function loadFmWebPublic(): Promise<FmWebPublic | null> {
 const payload = (await loadFmWebPublic()) || (fallback as FmWebPublic);
 const settings: FmHomepage = payload.homepage || {};
 
+/** Krátká cache na Vercel CDN ve shodě s API (CRM změny do ~1–2 min na webu). */
+Astro.response.headers.set(
+    'Cache-Control',
+    'public, s-maxage=60, stale-while-revalidate=300',
+);
+
 const toIsoString = (input: unknown) => {
     if (!input) return null;
     return new Date(String(input)).toISOString().split('T')[0];

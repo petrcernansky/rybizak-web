@@ -9,6 +9,7 @@ export default defineConfig({
     tailwind(),
   ],
 
-  output: 'static',
+  // SSR titulky: menu a texty z CRM se načítají z API při každém requestu (ne při buildu).
+  output: 'server',
   adapter: vercel(),
 });
