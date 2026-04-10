@@ -168,9 +168,9 @@ const mapPadLon = 0.00085;
 const mapPadLat = 0.00055;
 const osmBbox = `${venueMap.lon - mapPadLon},${venueMap.lat - mapPadLat},${venueMap.lon + mapPadLon},${venueMap.lat + mapPadLat}`;
 const osmEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(osmBbox)}&layer=mapnik`;
-const googleMapsQueryEncoded = encodeURIComponent(venueMap.placeLabel);
-const googleMapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${googleMapsQueryEncoded}`;
-const googleMapsDirectionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${googleMapsQueryEncoded}&travelmode=driving`;
+/** Karta místa (ne navigace) — oficiální Google Maps Place */
+const googleMapsPlaceUrl =
+    'https://www.google.com/maps/place/Ryb%C3%ADz%C3%A1k/@49.6714121,18.3444481,17z/data=!3m1!4b1!4m6!3m5!1s0x4713f6dfe06d1b41:0xa13c8372529713e0!8m2!3d49.6714087!4d18.347023!16s%2Fg%2F11b6_48s5r';
 const footerBuildYear = new Date().getFullYear();
 ---
 
@@ -706,22 +706,22 @@ const footerBuildYear = new Date().getFullYear();
                         referrerpolicy="no-referrer-when-downgrade"
                     />
                     <a
-                        id="footer-map-nav"
-                        href={googleMapsDirectionsUrl}
+                        id="footer-map-place"
+                        href={googleMapsPlaceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         class="absolute inset-0 z-10 flex items-end justify-end bg-gradient-to-t from-[#1a1424]/85 via-[#45225e]/15 to-transparent p-3 transition hover:from-[#1a1424]/92 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#e8c4ff]"
-                        aria-label={`Navigace do ${venueMap.placeLabel}`}
+                        aria-label={`Detail místa ${venueMap.placeLabel} v Google Mapách`}
                     >
                         <span class="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-md">
-                            Otevřít v Google Mapách
+                            Zobrazit místo v Mapách
                             <span class="text-[#45225e]" aria-hidden="true">→</span>
                         </span>
                     </a>
                 </div>
                 <p class="mt-2 text-center text-[11px] leading-snug text-white/45 md:text-left">
                     <a
-                        href={googleMapsSearchUrl}
+                        href={googleMapsPlaceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         class="text-white/70 underline decoration-white/25 underline-offset-2 transition hover:text-white"
