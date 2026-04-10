@@ -452,7 +452,7 @@ const footerBuildYear = new Date().getFullYear();
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                     </span>
-                    <span class="text-sm font-bold text-green-800 uppercase tracking-wider">Právě na směně</span>
+                    <span class="text-sm font-bold text-green-800 uppercase tracking-wider">Právě se o Vás stará</span>
                 </div>
                 <div class="flex flex-wrap justify-center gap-8" data-shift-list></div>
             </div>
@@ -841,18 +841,18 @@ const footerBuildYear = new Date().getFullYear();
             function renderPerson(person, variant) {
                 var isShift = variant === 'shift';
                 var hasProfile = Boolean(person.email && profiles[person.email]);
-                var wrapperClass = (isShift ? 'flex flex-col items-center' : 'flex flex-col items-center group flex-shrink-0') + (hasProfile ? ' cursor-pointer emp-profile' : '');
-                var photoBoxClass = isShift ? 'w-14 h-14 md:w-16 md:h-16 mb-1.5' : 'w-20 h-20 md:w-24 md:h-24 mb-2';
+                var wrapperClass = 'flex flex-col items-center group flex-shrink-0' + (hasProfile ? ' cursor-pointer emp-profile' : '');
+                var photoBoxClass = 'w-20 h-20 md:w-24 md:h-24 mb-2';
                 var photoHtml = person.photo
-                    ? '<img src="' + escapeHtml(person.photo) + '" alt="' + escapeHtml(person.name) + '" class="relative w-full h-full rounded-full object-cover ' + (isShift ? 'border-2 border-green-300 shadow-sm' : 'border-[3px] border-white shadow-md group-hover:scale-105 transition duration-300') + '" loading="lazy" decoding="async" />'
-                    : '<div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center ' + (isShift ? 'text-lg' : 'text-2xl') + '">🍷</div>';
+                    ? '<img src="' + escapeHtml(person.photo) + '" alt="' + escapeHtml(person.name) + '" class="relative w-full h-full rounded-full object-cover border-[3px] border-white shadow-md group-hover:scale-105 transition duration-300" loading="lazy" decoding="async" />'
+                    : '<div class="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-2xl">🍷</div>';
                 var positionHtml = isShift && person.pozice
-                    ? '<span class="text-[10px] font-bold uppercase tracking-wider text-green-700/60 mt-0.5">' + escapeHtml(person.pozice) + '</span>'
+                    ? '<span class="text-[11px] font-bold uppercase tracking-wider text-green-700/70 mt-1">' + escapeHtml(person.pozice) + '</span>'
                     : '';
 
                 return '<div class="' + wrapperClass + '" data-email="' + escapeHtml(person.email || '') + '">' +
                     '<div class="' + photoBoxClass + ' relative">' + photoHtml + '</div>' +
-                    '<span class="' + (isShift ? 'text-xs' : 'text-sm') + ' font-semibold text-gray-800">' + escapeHtml(person.name) + '</span>' +
+                    '<span class="text-sm font-semibold text-gray-800">' + escapeHtml(person.name) + '</span>' +
                     positionHtml +
                 '</div>';
             }
