@@ -374,12 +374,12 @@ const footerBuildYear = new Date().getFullYear();
 
     {benefity.length > 0 && (
         <section class="relative z-20 -mt-10 mx-3 border-b border-gray-100 bg-white py-10 shadow-lg sm:mx-4 md:mx-auto md:max-w-5xl md:rounded-xl">
-            <div class="mx-auto grid w-full max-w-5xl grid-cols-3 gap-x-3 gap-y-8 px-3 sm:gap-x-4 sm:px-4 md:max-w-6xl md:grid-cols-6 md:gap-x-6 lg:max-w-7xl">
+            <div class="mx-auto flex w-full max-w-7xl flex-wrap justify-center gap-x-4 gap-y-8 px-3 sm:px-4">
                 {benefity.map((item) => {
                     const iconDef = getFmBenefitIcon(item.iconKey);
                     const legacySrc = isLegacyBenefitIconUrl(item.icon) ? absolutizeUrl(item.icon) : null;
                     return (
-                        <div class="flex min-w-0 flex-col items-center text-center">
+                        <div class="box-border flex w-[calc((100%-2rem)/3)] max-w-[11rem] shrink-0 grow-0 flex-col items-center text-center md:w-[calc((100%-5rem)/6)] md:max-w-[10rem] lg:max-w-[11rem]">
                             <div class="mb-3 flex h-14 w-14 shrink-0 items-center justify-center text-[#45225e]">
                                 {iconDef ? (
                                     <svg
