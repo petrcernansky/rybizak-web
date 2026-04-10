@@ -1,7 +1,8 @@
 ---
 import fallback from '../data/fm-web-public-fallback.json';
 
-const FM_WEB_URL = import.meta.env.PUBLIC_FM_WEB_URL || 'https://web.rybizak.cloud/api/rybizak-fm/web/public';
+const FM_WEB_URL =
+    import.meta.env.PUBLIC_FM_WEB_URL || 'https://web.rybizak.cloud/api/vinarna/fm-web/public';
 
 type FmHomepage = {
     infoBannerText?: string;
