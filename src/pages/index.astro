@@ -986,7 +986,34 @@ const footerBuildYear = new Date().getFullYear();
                 '</div>';
             }
 
+            var REVIEW_COLLAPSE_LENGTH = 160;
+            var reviewVisibilityObserver = null;
+
+            function truncateReviewComment(comment) {
+                var normalizedComment = String(comment || '').trim();
+                if (normalizedComment.length <= REVIEW_COLLAPSE_LENGTH) {
+                    return {
+                        full: normalizedComment,
+                        preview: normalizedComment,
+                        isLong: false
+                    };
+                }
+
+                var preview = normalizedComment.slice(0, REVIEW_COLLAPSE_LENGTH);
+                var lastSpace = preview.lastIndexOf(' ');
+                if (lastSpace > REVIEW_COLLAPSE_LENGTH * 0.65) {
+                    preview = preview.slice(0, lastSpace);
+                }
+
+                return {
+                    full: normalizedComment,
+                    preview: preview.replace(/[\s.,;:!?-]+$/u, '') + '…',
+                    isLong: true
+                };
+            }
+
             function renderReview(review, useCarousel) {
+                var comment = truncateReviewComment(review.comment);
                 return '<article data-review-card class="relative h-full rounded-[2rem] border border-[#45225e]/10 bg-gradient-to-br from-[#fffaf5] via-white to-[#faf6ff] p-7 shadow-[0_8px_32px_-4px_rgba(69,34,94,0.09),0_2px_8px_-2px_rgba(69,34,94,0.06)]' + (useCarousel ? ' snap-start' : '') + '">' +
                     '<div class="absolute right-0 top-0 h-28 w-28 rounded-full bg-[#ad6cdb]/10 blur-3xl"></div>' +
                     '<div class="relative z-10 flex h-full flex-col">' +
@@ -1001,9 +1028,76 @@ const footerBuildYear = new Date().getFullYear();
                             '<span class="select-none text-2xl font-black leading-none tracking-[0.2em] text-transparent bg-clip-text" style="background-image: linear-gradient(90deg, #f59e0b ' + (Number(review.starValue || 0) * 20) + '%, #e5e7eb ' + (Number(review.starValue || 0) * 20) + '%);" aria-hidden="true">★★★★★</span>' +
                             '<span class="text-sm font-bold text-amber-600">' + escapeHtml(review.starLabel) + ' / 5</span>' +
                         '</div>' +
-                        '<p class="mt-6 flex-1 text-base leading-8 text-slate-700">"' + escapeHtml(review.comment) + '"</p>' +
+                        '<div class="mt-6 flex-1">' +
+                            '<p class="text-base leading-8 text-slate-700" data-review-comment data-review-collapsed="' + (comment.isLong ? 'true' : 'false') + '"' + (comment.isLong ? ' data-review-preview="' + escapeHtml(comment.preview) + '" data-review-full="' + escapeHtml(comment.full) + '"' : '') + '>"' + escapeHtml(comment.isLong ? comment.preview : comment.full) + '</p>' +
+                        '</div>' +
+                        (comment.isLong
+                            ? '<button type="button" class="mt-4 inline-flex self-start rounded-full border border-[#45225e]/10 bg-white/90 px-4 py-2 text-sm font-semibold text-[#45225e] shadow-sm transition hover:bg-[#faf6ff]" data-review-toggle aria-expanded="false">Více</button>'
+                            : '') +
                     '</div>' +
                 '</article>';
+            }
+
+            function collapseReviewCard(card) {
+                if (!card) return;
+                var comment = card.querySelector('[data-review-comment]');
+                var toggle = card.querySelector('[data-review-toggle]');
+                if (!comment || !toggle || comment.dataset.reviewCollapsed === 'true') return;
+
+                comment.textContent = comment.dataset.reviewPreview || '';
+                comment.dataset.reviewCollapsed = 'true';
+                toggle.textContent = 'Více';
+                toggle.setAttribute('aria-expanded', 'false');
+            }
+
+            function toggleReviewCard(card) {
+                if (!card) return;
+                var comment = card.querySelector('[data-review-comment]');
+                var toggle = card.querySelector('[data-review-toggle]');
+                if (!comment || !toggle) return;
+
+                var isCollapsed = comment.dataset.reviewCollapsed !== 'false';
+                comment.textContent = isCollapsed ? (comment.dataset.reviewFull || '') : (comment.dataset.reviewPreview || '');
+                comment.dataset.reviewCollapsed = isCollapsed ? 'false' : 'true';
+                toggle.textContent = isCollapsed ? 'Méně' : 'Více';
+                toggle.setAttribute('aria-expanded', isCollapsed ? 'true' : 'false');
+            }
+
+            function bindReviewToggles() {
+                if (!reviewTrack || reviewTrack.dataset.reviewToggleBound === 'true') return;
+                reviewTrack.dataset.reviewToggleBound = 'true';
+
+                reviewTrack.addEventListener('click', function(event) {
+                    var toggle = event.target && event.target.closest('[data-review-toggle]');
+                    if (!toggle) return;
+
+                    var card = toggle.closest('[data-review-card]');
+                    toggleReviewCard(card);
+                });
+            }
+
+            function observeReviewVisibility() {
+                if (!reviewTrack) return;
+                if (reviewVisibilityObserver) {
+                    reviewVisibilityObserver.disconnect();
+                    reviewVisibilityObserver = null;
+                }
+
+                if (reviewTrack.dataset.reviewCarousel !== 'true' || typeof IntersectionObserver === 'undefined') return;
+
+                reviewVisibilityObserver = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) return;
+                        collapseReviewCard(entry.target);
+                    });
+                }, {
+                    root: reviewTrack,
+                    threshold: [0.6]
+                });
+
+                reviewTrack.querySelectorAll('[data-review-card]').forEach(function(card) {
+                    reviewVisibilityObserver.observe(card);
+                });
             }
 
             function bindProfileTriggers() {
@@ -1078,7 +1172,9 @@ const footerBuildYear = new Date().getFullYear();
                             return renderReview(review, useCarousel);
                         }).join('');
                         reviewSection.hidden = false;
+                        bindReviewToggles();
                         setupReviewCarousel(useCarousel);
+                        observeReviewVisibility();
                         requestAnimationFrame(function() {
                             requestAnimationFrame(function() {
                                 updateReviewButtons();
