@@ -245,6 +245,10 @@ const footerBuildYear = new Date().getFullYear();
         .team-scroll::-webkit-scrollbar { display: none; }
         .review-scroll { -ms-overflow-style: none; scrollbar-width: none; }
         .review-scroll::-webkit-scrollbar { display: none; }
+        [data-review-comment]::before,
+        [data-review-comment]::after {
+            content: '"';
+        }
         .emp-profile:hover img { box-shadow: 0 0 0 3px rgba(69,34,94,0.3); }
         .is-loading::after {
             content: '';
@@ -1029,7 +1033,7 @@ const footerBuildYear = new Date().getFullYear();
                             '<span class="text-sm font-bold text-amber-600">' + escapeHtml(review.starLabel) + ' / 5</span>' +
                         '</div>' +
                         '<div class="mt-6 flex-1">' +
-                            '<p class="text-base leading-8 text-slate-700" data-review-comment data-review-collapsed="' + (comment.isLong ? 'true' : 'false') + '"' + (comment.isLong ? ' data-review-preview="' + escapeHtml(comment.preview) + '" data-review-full="' + escapeHtml(comment.full) + '"' : '') + '>"' + escapeHtml(comment.isLong ? comment.preview : comment.full) + '</p>' +
+                            '<p class="text-base leading-8 text-slate-700" data-review-comment data-review-collapsed="' + (comment.isLong ? 'true' : 'false') + '"' + (comment.isLong ? ' data-review-preview="' + escapeHtml(comment.preview) + '" data-review-full="' + escapeHtml(comment.full) + '"' : '') + '>' + escapeHtml(comment.isLong ? comment.preview : comment.full) + '</p>' +
                         '</div>' +
                         (comment.isLong
                             ? '<button type="button" class="mt-4 inline-flex self-start rounded-full border border-[#45225e]/10 bg-white/90 px-4 py-2 text-sm font-semibold text-[#45225e] shadow-sm transition hover:bg-[#faf6ff]" data-review-toggle aria-expanded="false">Více</button>'
