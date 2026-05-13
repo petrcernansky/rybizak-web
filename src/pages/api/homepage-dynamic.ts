@@ -12,7 +12,10 @@ const NC_BASE = process.env.NOCOBASE_BASE || 'https://app.rybizak.cloud';
 // zůstává na Vercel infrastructuře, klient dostane jen výsledek.
 // Důvod: 2026-05-13 incident — admin JWT byl natvrdo v tomto souboru a git
 // historii, po revoke v NocoBase admin přestaly fungovat tým + směny widget.
-const NOCOBASE_TOKEN = process.env.NOCOBASE_TOKEN || '';
+// Akceptuje `NOCOBASE_TOKEN` (naše konvence) nebo `nocobase` (lowercase
+// alias — některé deploy pipelines tak ukládají secret na Vercel, viz commit
+// s Vercel screenshot 2026-05-13).
+const NOCOBASE_TOKEN = process.env.NOCOBASE_TOKEN || process.env.nocobase || '';
 const NC_HEADERS = {
   Authorization: `Bearer ${NOCOBASE_TOKEN}`,
   'Content-Type': 'application/json',
