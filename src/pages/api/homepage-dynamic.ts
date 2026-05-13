@@ -150,23 +150,11 @@ async function getTeamAndShifts() {
   const onShiftNow: ShiftPerson[] = [];
   const employeeByEmail = new Map<string, { jmeno: string; foto: string }>();
   const profileByEmail = new Map<string, EmpProfile>();
-  // TEMP debug — odstrann po vyřešení.
-  const debug: Record<string, unknown> = {
-    tokenSource: process.env.NOCOBASE_TOKEN
-      ? 'NOCOBASE_TOKEN'
-      : (process.env.nocobase ? 'nocobase' : 'NONE'),
-    tokenLen: NOCOBASE_TOKEN.length,
-    tokenPrefix: NOCOBASE_TOKEN.slice(0, 16),
-    ncBase: NC_BASE,
-  };
 
   try {
     const ncRes = await fetch(`${NC_BASE}/api/zamestnanci:list?pageSize=500`, { headers: NC_HEADERS });
-    debug.zamestnanciStatus = ncRes.status;
     if (!ncRes.ok) {
-      const errBody = await ncRes.text().catch(() => '');
-      debug.zamestnanciError = errBody.slice(0, 300);
-      return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail), debug };
+      return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail) };
     }
 
     const ncJson = await ncRes.json();
@@ -232,13 +220,13 @@ async function getTeamAndShifts() {
     });
 
     if (!shiftsResponse.ok) {
-      return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail), debug };
+      return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail) };
     }
 
     const shiftsJson = await shiftsResponse.json();
     const list: any[] = shiftsJson.data || [];
     if (!list.length) {
-      return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail), debug };
+      return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail) };
     }
 
     const record = list[0];
@@ -303,10 +291,10 @@ async function getTeamAndShifts() {
       }
     }
   } catch {
-    return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail), debug };
+    return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail) };
   }
 
-  return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail), debug };
+  return { teamMembers, onShiftNow, profiles: Object.fromEntries(profileByEmail) };
 }
 
 export const GET: APIRoute = async () => {
