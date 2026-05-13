@@ -5,9 +5,16 @@ export const prerender = false;
 const REVIEW_LOOKBACK_DAYS = 60;
 const REVIEW_DASHBOARD_LIMIT = 200;
 const REVIEW_DASHBOARD_URL = `https://web.rybizak.cloud/api/vinarna/review/dashboard?limit=${REVIEW_DASHBOARD_LIMIT}`;
-const NC_BASE = 'https://app.rybizak.cloud';
+const NC_BASE = process.env.NOCOBASE_BASE || 'https://app.rybizak.cloud';
+// NOCOBASE_TOKEN je server-side env var na Vercelu (Settings → Environment
+// Variables → Production). NIKDY se nesmí dostat do client bundle. Astro
+// API routes (`export const prerender = false`) běží serverless → token
+// zůstává na Vercel infrastructuře, klient dostane jen výsledek.
+// Důvod: 2026-05-13 incident — admin JWT byl natvrdo v tomto souboru a git
+// historii, po revoke v NocoBase admin přestaly fungovat tým + směny widget.
+const NOCOBASE_TOKEN = process.env.NOCOBASE_TOKEN || '';
 const NC_HEADERS = {
-  Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGVOYW1lIjoiYWRtaW4iLCJpYXQiOjE3NzA1ODkzMTIsImV4cCI6MzMzMjgxODkzMTJ9.29n7mNqn-JZ-mUvYdSSXaPC-xrg3XLH_gfA6UPz7vdA',
+  Authorization: `Bearer ${NOCOBASE_TOKEN}`,
   'Content-Type': 'application/json',
 };
 
